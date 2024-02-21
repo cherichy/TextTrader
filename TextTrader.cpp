@@ -3,15 +3,11 @@
 //
 //
 #include "TextTrader.h"
-#pragma warning(disable: 4786)
-#pragma warning(disable: 4018)
-#pragma warning(disable: 4244)
-#pragma warning(disable: 4996)
 #include <float.h>
 #include <math.h>
-#include <windows.h>
 
 #ifdef _WIN32
+#include <windows.h>
 #undef getch
 #undef ungetch
 #include <conio.h>
@@ -29,7 +25,7 @@
 #include <climits>
 
 #ifndef _WIN32
-#define strnicmp _strnicmp
+#define strnicmp strncasecmp
 #endif
 
 // 控制键定义
@@ -86,23 +82,24 @@ std::string GBKToUtf8(const std::string& str)
 
     return res;
 #elif defined(__linux__) || defined(__GNUC__)
-    size_t len = str.size() * 2 + 1;
-    char* temp = new char[len];
-    if (EncodingConvert("gb2312", "utf-8", const_cast<char*>(str.c_str()), str.size(), temp, len)
-        > = 0)
-    {
+    // size_t len = str.size() * 2 + 1;
+    // char* temp = new char[len];
+    // if (EncodingConvert("gb2312", "utf-8", const_cast<char*>(str.c_str()), str.size(), temp, len)
+    //     > = 0)
+    // {
    
-        std::string res;
-        res.append(temp);
-        delete[] temp;
-        return res;
-    }
-    else
-    {
+    //     std::string res;
+    //     res.append(temp);
+    //     delete[] temp;
+    //     return res;
+    // }
+    // else
+    // {
    
-        delete[]temp;
-        return str;
-    }
+    //     delete[]temp;
+    //     return str;
+    // }
+	return str;
 #else
     std::cerr << "Unhandled operating system." << std::endl;
     return str;
@@ -1695,11 +1692,11 @@ void display_quotation(size_t index)
 			x+=column_items[COL_PREV_CLOSE].width+1;
 			break;
 		case COL_OPENINT:
-			mvprintw(y,x,"%*d",column_items[COL_OPENINT].width,vquotes[i].DepthMarketData.OpenInterest);
+			mvprintw(y,x,"%*d",column_items[COL_OPENINT].width,(int)vquotes[i].DepthMarketData.OpenInterest);
 			x+=column_items[COL_OPENINT].width+1;
 			break;
 		case COL_PREV_OPENINT:
-			mvprintw(y,x,"%*d",column_items[COL_PREV_OPENINT].width,vquotes[i].DepthMarketData.PreOpenInterest);
+			mvprintw(y,x,"%*d",column_items[COL_PREV_OPENINT].width,(int)vquotes[i].DepthMarketData.PreOpenInterest);
 			x+=column_items[COL_PREV_OPENINT].width+1;
 			break;
 		case COL_DATE:
@@ -1825,7 +1822,7 @@ void display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%d]",curr_pos+curr_line,vquotes.size());
+	mvprintw(y-1,0,"[%d/%ld]",curr_pos+curr_line,vquotes.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s",pTradeRsp->user,tradetime);
 }
@@ -3466,23 +3463,23 @@ void orderlist_display_title()
 			x+=orderlist_column_items[ORDERLIST_COL_SYMBOL_NAME].width+1;
 			break;
 		case ORDERLIST_COL_DIRECTION:		//direction
-			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DIRECTION].width,orderlist_column_items[ORDERLIST_COL_DIRECTION].name);
+			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DIRECTION].width+2,orderlist_column_items[ORDERLIST_COL_DIRECTION].name);
 			x+=orderlist_column_items[ORDERLIST_COL_DIRECTION].width+1;
 			break;
 		case ORDERLIST_COL_VOLUME:		//close
-			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_VOLUME].width,orderlist_column_items[ORDERLIST_COL_VOLUME].name);
+			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_VOLUME].width+2,orderlist_column_items[ORDERLIST_COL_VOLUME].name);
 			x+=orderlist_column_items[ORDERLIST_COL_VOLUME].width+1;
 			break;
 		case ORDERLIST_COL_VOLUME_FILLED:		//close
-			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_VOLUME_FILLED].width,orderlist_column_items[ORDERLIST_COL_VOLUME_FILLED].name);
+			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_VOLUME_FILLED].width+2,orderlist_column_items[ORDERLIST_COL_VOLUME_FILLED].name);
 			x+=orderlist_column_items[ORDERLIST_COL_VOLUME_FILLED].width+1;
 			break;
 		case ORDERLIST_COL_PRICE:		//volume
-			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_PRICE].width,orderlist_column_items[ORDERLIST_COL_PRICE].name);
+			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_PRICE].width+2,orderlist_column_items[ORDERLIST_COL_PRICE].name);
 			x+=orderlist_column_items[ORDERLIST_COL_PRICE].width+1;
 			break;
 		case ORDERLIST_COL_AVG_PRICE:		//close
-			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_AVG_PRICE].width,orderlist_column_items[ORDERLIST_COL_AVG_PRICE].name);
+			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_AVG_PRICE].width+4,orderlist_column_items[ORDERLIST_COL_AVG_PRICE].name);
 			x+=orderlist_column_items[ORDERLIST_COL_AVG_PRICE].width+1;
 			break;
 		case ORDERLIST_COL_APPLY_TIME:		//volume
@@ -3502,7 +3499,7 @@ void orderlist_display_title()
 			x+=orderlist_column_items[ORDERLIST_COL_SH_FLAG].width+1;
 			break;
 		case ORDERLIST_COL_ORDERID:		//close
-			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_ORDERID].width,orderlist_column_items[ORDERLIST_COL_ORDERID].name);
+			mvprintw(y,x,"%*s",orderlist_column_items[ORDERLIST_COL_ORDERID].width+3,orderlist_column_items[ORDERLIST_COL_ORDERID].name);
 			x+=orderlist_column_items[ORDERLIST_COL_ORDERID].width+1;
 			break;
 		case ORDERLIST_COL_EXCHANGE_NAME:		//volume
@@ -3571,7 +3568,7 @@ void orderlist_display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%d]",orderlist_curr_pos+orderlist_curr_line,vOrders.size());
+	mvprintw(y-1,0,"[%d/%ld]",orderlist_curr_pos+orderlist_curr_line,vOrders.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s",pTradeRsp->user,tradetime);
 }
@@ -4084,7 +4081,7 @@ void filllist_display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%d]",filllist_curr_pos+filllist_curr_line,vFilledOrders.size());
+	mvprintw(y-1,0,"[%d/%ld]",filllist_curr_pos+filllist_curr_line,vFilledOrders.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->user,tradetime);
 }
@@ -4478,55 +4475,55 @@ void positionlist_display_title()
 			x+=positionlist_column_items[POSITIONLIST_COL_SYMBOL_NAME].width+1;
 			break;
 		case POSITIONLIST_COL_VOLUME:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_VOLUME].width,positionlist_column_items[POSITIONLIST_COL_VOLUME].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_VOLUME].width+2,positionlist_column_items[POSITIONLIST_COL_VOLUME].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_VOLUME].width+1;
 			break;
 		case POSITIONLIST_COL_AVG_PRICE:		//volume
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].width,positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].width+2,positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].width+1;
 			break;
 		case POSITIONLIST_COL_PROFITLOSS:		//volume
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width,positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width+2,positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width+1;
 			break;
 		case POSITIONLIST_COL_MARGIN:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_MARGIN].width,positionlist_column_items[POSITIONLIST_COL_MARGIN].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_MARGIN].width+5,positionlist_column_items[POSITIONLIST_COL_MARGIN].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_MARGIN].width+1;
 			break;
 		case POSITIONLIST_COL_AMOUNT:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_AMOUNT].width,positionlist_column_items[POSITIONLIST_COL_AMOUNT].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_AMOUNT].width+4,positionlist_column_items[POSITIONLIST_COL_AMOUNT].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_AMOUNT].width+1;
 			break;
 		case POSITIONLIST_COL_BUY_VOLUME:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_VOLUME].width,positionlist_column_items[POSITIONLIST_COL_BUY_VOLUME].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_VOLUME].width+2,positionlist_column_items[POSITIONLIST_COL_BUY_VOLUME].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_VOLUME].width+1;
 			break;
 		case POSITIONLIST_COL_BUY_PRICE:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].width,positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].width+3,positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].width+1;
 			break;
 		case POSITIONLIST_COL_BUY_PROFITLOSS:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width,positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width+3,positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width+1;
 			break;
 		case POSITIONLIST_COL_BUY_TODAY:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width,positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width+2,positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width+1;
 			break;
 		case POSITIONLIST_COL_SELL_VOLUME:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width,positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width+2,positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width+1;
 			break;
 		case POSITIONLIST_COL_SELL_PRICE:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width,positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width+3,positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width+1;
 			break;
 		case POSITIONLIST_COL_SELL_PROFITLOSS:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_PROFITLOSS].width,positionlist_column_items[POSITIONLIST_COL_SELL_PROFITLOSS].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_PROFITLOSS].width+3,positionlist_column_items[POSITIONLIST_COL_SELL_PROFITLOSS].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_PROFITLOSS].width+1;
 			break;
 		case POSITIONLIST_COL_SELL_TODAY:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].width,positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].name);
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].width+2,positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].width+1;
 			break;
 		case POSITIONLIST_COL_EXCHANGE_NAME:		//volume
@@ -4591,7 +4588,7 @@ void positionlist_display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%d]",positionlist_curr_pos+positionlist_curr_line,vPositions.size());
+	mvprintw(y-1,0,"[%d/%ld]",positionlist_curr_pos+positionlist_curr_line,vPositions.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->user,tradetime);
 }
@@ -4989,15 +4986,15 @@ void acclist_display_title()
 			x+=acclist_column_items[ACCLIST_COL_ACC_NAME].width+1;
 			break;
 		case ACCLIST_COL_PRE_BALANCE:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_PRE_BALANCE].width,acclist_column_items[ACCLIST_COL_PRE_BALANCE].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_PRE_BALANCE].width+3,acclist_column_items[ACCLIST_COL_PRE_BALANCE].name);
 			x+=acclist_column_items[ACCLIST_COL_PRE_BALANCE].width+1;
 			break;
 		case ACCLIST_COL_MONEY_IN:		//volume
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_IN].width,acclist_column_items[ACCLIST_COL_MONEY_IN].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_IN].width+2,acclist_column_items[ACCLIST_COL_MONEY_IN].name);
 			x+=acclist_column_items[ACCLIST_COL_MONEY_IN].width+1;
 			break;
 		case ACCLIST_COL_MONEY_OUT:		//volume
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_OUT].width,acclist_column_items[ACCLIST_COL_MONEY_OUT].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_OUT].width+2,acclist_column_items[ACCLIST_COL_MONEY_OUT].name);
 			x+=acclist_column_items[ACCLIST_COL_MONEY_OUT].width+1;
 			break;
 		case ACCLIST_COL_FROZEN_MARGIN:		//close
@@ -5005,7 +5002,7 @@ void acclist_display_title()
 			x+=acclist_column_items[ACCLIST_COL_FROZEN_MARGIN].width+1;
 			break;
 		case ACCLIST_COL_MONEY_FROZEN:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_FROZEN].width,acclist_column_items[ACCLIST_COL_MONEY_FROZEN].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_MONEY_FROZEN].width+4,acclist_column_items[ACCLIST_COL_MONEY_FROZEN].name);
 			x+=acclist_column_items[ACCLIST_COL_MONEY_FROZEN].width+1;
 			break;
 		case ACCLIST_COL_FEE_FROZEN:		//close
@@ -5017,19 +5014,19 @@ void acclist_display_title()
 			x+=acclist_column_items[ACCLIST_COL_MARGIN].width+1;
 			break;
 		case ACCLIST_COL_FEE:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_FEE].width,acclist_column_items[ACCLIST_COL_FEE].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_FEE].width+3,acclist_column_items[ACCLIST_COL_FEE].name);
 			x+=acclist_column_items[ACCLIST_COL_FEE].width+1;
 			break;
 		case ACCLIST_COL_CLOSE_PROFIT_LOSS:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_CLOSE_PROFIT_LOSS].width,acclist_column_items[ACCLIST_COL_CLOSE_PROFIT_LOSS].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_CLOSE_PROFIT_LOSS].width+4,acclist_column_items[ACCLIST_COL_CLOSE_PROFIT_LOSS].name);
 			x+=acclist_column_items[ACCLIST_COL_CLOSE_PROFIT_LOSS].width+1;
 			break;
 		case ACCLIST_COL_FLOAT_PROFIT_LOSS:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_FLOAT_PROFIT_LOSS].width,acclist_column_items[ACCLIST_COL_FLOAT_PROFIT_LOSS].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_FLOAT_PROFIT_LOSS].width+4,acclist_column_items[ACCLIST_COL_FLOAT_PROFIT_LOSS].name);
 			x+=acclist_column_items[ACCLIST_COL_FLOAT_PROFIT_LOSS].width+1;
 			break;
 		case ACCLIST_COL_BALANCE_AVAILABLE:		//close
-			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_BALANCE_AVAILABLE].width,acclist_column_items[ACCLIST_COL_BALANCE_AVAILABLE].name);
+			mvprintw(y,x,"%*s",acclist_column_items[ACCLIST_COL_BALANCE_AVAILABLE].width+4,acclist_column_items[ACCLIST_COL_BALANCE_AVAILABLE].name);
 			x+=acclist_column_items[ACCLIST_COL_BALANCE_AVAILABLE].width+1;
 			break;
 		case ACCLIST_COL_BROKER_ID:		//close
@@ -5094,7 +5091,7 @@ void acclist_display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%d]",acclist_curr_pos+acclist_curr_line,vAccounts.size());
+	mvprintw(y-1,0,"[%d/%ld]",acclist_curr_pos+acclist_curr_line,vAccounts.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->user,tradetime);
 }
@@ -9332,7 +9329,7 @@ void corner_display_input()
 	int y,x;
 
 	getmaxyx(stdscr,y,x);
-	mvwprintw(corner_win,1,1,strsearching);
+	mvwprintw(corner_win,1,1,strsearching,"%s");
 }
 
 void corner_display_matches()
@@ -9652,7 +9649,7 @@ void order_corner_display_input()
 	int y,x;
 
 	getmaxyx(stdscr,y,x);
-	mvwprintw(order_corner_win,1,1,order_strsearching);
+	mvwprintw(order_corner_win,1,1,order_strsearching,"%s");
 }
 
 void order_corner_display_matches()

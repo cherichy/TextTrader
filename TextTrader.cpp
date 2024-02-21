@@ -65,7 +65,7 @@ apierror_t apierrorarray[]={
 
 std::string GBKToUtf8(const std::string& str)
 {
-   
+
 #if defined(__WIN32) || defined(_MSC_VER) || defined(WIN64)
     int len = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, NULL, 0);
     wchar_t* wstr = new wchar_t[len + 1ull];
@@ -87,7 +87,7 @@ std::string GBKToUtf8(const std::string& str)
     // if (EncodingConvert("gb2312", "utf-8", const_cast<char*>(str.c_str()), str.size(), temp, len)
     //     > = 0)
     // {
-   
+
     //     std::string res;
     //     res.append(temp);
     //     delete[] temp;
@@ -95,7 +95,7 @@ std::string GBKToUtf8(const std::string& str)
     // }
     // else
     // {
-   
+
     //     delete[]temp;
     //     return str;
     // }
@@ -811,6 +811,19 @@ void HandleStatusClear()
 {
 	memset(status_message, 0x00, sizeof(status_message));
 	seconds_delayed = 0;
+}
+
+void HandleQueryAccount()
+{
+	if (TradeConnectionStatus != CONNECTION_STATUS_LOGINOK)
+		return;
+
+	CThostFtdcQryTradingAccountField Req;
+
+	memset(&Req, 0x00, sizeof(Req));
+	strcpy(Req.BrokerID, pTradeRsp->broker);
+	strcpy(Req.InvestorID, pTradeRsp->user);
+	pTradeRsp->m_pTradeReq->ReqQryTradingAccount(&Req, 0);
 }
 
 void HandleTickTimeout()
@@ -3168,6 +3181,7 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 			}
 			Posi.BuyingVolume+=Req.VolumeTotalOriginal;
 		}
+		mPositionIndex[Posi.InstrumentID] = vPositions.size();
 		vPositions.push_back(Posi);
 	}
 
@@ -5823,10 +5837,14 @@ void work_thread()
 
 void time_thread()
 {
+	size_t seconds = 0;
 	while (true) {
 		std::this_thread::sleep_for(std::chrono::seconds(1));
+		seconds++;
 		if (seconds_delayed++ >= 3)
 			post_task(std::bind(HandleStatusClear));
+		if (seconds % 3 == 0)
+			post_task(std::bind(HandleQueryAccount));
 		post_task(std::bind(HandleTickTimeout));
 	}
 }
@@ -8663,14 +8681,6 @@ void CTradeRsp::HandleRspQryInvestorPosition(CThostFtdcInvestorPositionField& In
 	}
 
 	// 持仓处理完毕,查询资金
-	CThostFtdcQryTradingAccountField Req;
-	int r=0;
-	
-	memset(&Req,0x00,sizeof(Req));
-	strcpy(Req.BrokerID,broker);
-	strcpy(Req.InvestorID,user);
-	while((r=m_pTradeReq->ReqQryTradingAccount(&Req,m_nTradeRequestID++))==-2 || r==-3)
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }
 
 void CTradeRsp::HandleRspQryTradingAccount(CThostFtdcTradingAccountField& TradingAccount, CThostFtdcRspInfoField& RspInfo, int nRequestID, bool bIsLast)
@@ -8679,7 +8689,7 @@ void CTradeRsp::HandleRspQryTradingAccount(CThostFtdcTradingAccountField& Tradin
 		status_print("查询资金失败:%s", RspInfo.ErrorMsg);
 		return;
 	}
-	status_print("查询资金成功.");
+	//status_print("查询资金成功.");
 
 	std::vector<stAccount_t>::iterator iter;
 	for(iter=vAccounts.begin();iter!=vAccounts.end();iter++){

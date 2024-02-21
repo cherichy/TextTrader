@@ -28,58 +28,58 @@ public:
 	CTradeRsp();
 	~CTradeRsp();
 
-	//ÒÑÁ¬½Ó
+	//å·²è¿æ¥
 	void OnFrontConnected();
 	
-	//Î´Á¬½Ó
+	//æœªè¿æ¥
 	void OnFrontDisconnected(int nReason);
 	
-	///ÈÏÖ¤ÏìÓ¦
+	///è®¤è¯å“åº”
 	void OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthenticateField, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	//µÇÂ¼Ó¦´ğ
+	//ç™»å½•åº”ç­”
 	void OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast);
 	
-	//µÇ³öÓ¦´ğ
+	//ç™»å‡ºåº”ç­”
 	void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast);
 	
-	// ²éÑ¯ºÏÔ¼ÁĞ±í
+	// æŸ¥è¯¢åˆçº¦åˆ—è¡¨
 	void OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// ²éÑ¯ĞĞÇéÁĞ±í
+	// æŸ¥è¯¢è¡Œæƒ…åˆ—è¡¨
 	void OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// ²éÑ¯Î¯ÍĞÁĞ±í
+	// æŸ¥è¯¢å§”æ‰˜åˆ—è¡¨
 	void OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// ²éÑ¯³É½»ÁĞ±í
+	// æŸ¥è¯¢æˆäº¤åˆ—è¡¨
 	void OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// ²éÑ¯³Ö²Ö
+	// æŸ¥è¯¢æŒä»“
 	void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// ²éÑ¯³Ö²ÖÃ÷Ï¸
+	// æŸ¥è¯¢æŒä»“æ˜ç»†
 	void OnRspQryInvestorPositionDetail(CThostFtdcInvestorPositionDetailField *pInvestorPositionDetail, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	///ÇëÇó²éÑ¯×Ê½ğÕË»§ÏìÓ¦
+	///è¯·æ±‚æŸ¥è¯¢èµ„é‡‘è´¦æˆ·å“åº”
 	void OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	///±¨µ¥Â¼ÈëÇëÇóÏìÓ¦
+	///æŠ¥å•å½•å…¥è¯·æ±‚å“åº”
 	void OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 		
-	///±¨µ¥²Ù×÷ÇëÇóÏìÓ¦
+	///æŠ¥å•æ“ä½œè¯·æ±‚å“åº”
 	void OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
-	// Î¯ÍĞ»Ø±¨
+	// å§”æ‰˜å›æŠ¥
 	void OnRtnOrder(CThostFtdcOrderField *pOrder);
 
-	// ³É½»»Ø±¨
+	// æˆäº¤å›æŠ¥
 	void OnRtnTrade(CThostFtdcTradeField *pTrade);
 
-	// ±¨µ¥´íÎó
+	// æŠ¥å•é”™è¯¯
 	void OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo);
 
-	// ³·µ¥´íÎó»Ø±¨
+	// æ’¤å•é”™è¯¯å›æŠ¥
 	void OnErrRtnOrderAction(CThostFtdcOrderActionField *pOrderAction, CThostFtdcRspInfoField *pRspInfo);
 
 
@@ -128,25 +128,25 @@ public:
 	CMarketRsp();
 	~CMarketRsp();
 
-	//ÒÑÁ¬½Ó
+	//å·²è¿æ¥
 	void OnFrontConnected();
 	
-	//Î´Á¬½Ó
+	//æœªè¿æ¥
 	void OnFrontDisconnected(int nReason);
 	
-	//µÇÂ¼Ó¦´ğ
+	//ç™»å½•åº”ç­”
 	void OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast);
 	
-	//µÇ³öÓ¦´ğ
+	//ç™»å‡ºåº”ç­”
 	void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast);
 	
-	//¶¨ÔÄÓ¦´ğ
+	//å®šé˜…åº”ç­”
 	void OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 	
-	//ÍË¶©Ó¦´ğ
+	//é€€è®¢åº”ç­”
 	void OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 	
-	//ĞĞÇé·şÎñµÄÉî¶ÈĞĞÇéÍ¨Öª
+	//è¡Œæƒ…æœåŠ¡çš„æ·±åº¦è¡Œæƒ…é€šçŸ¥
 	void OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData);
 
 

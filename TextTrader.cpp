@@ -13,6 +13,7 @@
 #include <conio.h>
 #endif
 
+#include <algorithm>
 #include <thread>
 #include <mutex>
 #include <functional>
@@ -250,9 +251,9 @@ std::map<int,bool> mcolumns;	// column select status
 
 column_item_t orderlist_column_items[]={
 #define ORDERLIST_COL_SYMBOL			0		// 合约
-	{"合约",		10},
+	{"合约",		14},
 #define ORDERLIST_COL_SYMBOL_NAME		1		// 名称
-	{"名称",		10},
+	{"名称",		16},
 #define ORDERLIST_COL_DIRECTION			2		// 买卖
 	{"买卖",		6},
 #define ORDERLIST_COL_VOLUME			3		// 数量
@@ -272,7 +273,7 @@ column_item_t orderlist_column_items[]={
 #define ORDERLIST_COL_SH_FLAG			10		// 投保
 	{"投保",		4},
 #define ORDERLIST_COL_ORDERID			11		// 报单号
-	{"报单号",		21},
+	{"报单号",		8},
 #define ORDERLIST_COL_EXCHANGE_NAME		12		// 交易所名称
 	{"交易所",		10},
 #define ORDERLIST_COL_DESC				13		// 备注
@@ -287,7 +288,7 @@ column_item_t filllist_column_items[]={
 #define FILLLIST_COL_SYMBOL				0		// 合约
 	{"合约",		10},
 #define FILLLIST_COL_SYMBOL_NAME		1		// 名称
-	{"名称",		10},
+	{"名称",		16},
 #define FILLLIST_COL_DIRECTION			2		// 买卖
 	{"买卖",		6},
 #define FILLLIST_COL_VOLUME				3		// 数量
@@ -299,9 +300,9 @@ column_item_t filllist_column_items[]={
 #define FILLLIST_COL_SH_FLAG			6		// 投保
 	{"投保",		4},
 #define FILLLIST_COL_ORDERID			7		// 报单号
-	{"报单号",		21},
+	{"报单号",		8},
 #define FILLLIST_COL_FILLID				8		// 成交号
-	{"成交号",		21},
+	{"成交号",		8},
 #define FILLLIST_COL_EXCHANGE_NAME		9		// 交易所名称
 	{"交易所",		10},
 #define FILLLIST_COL_ACC_ID				10		// 账号
@@ -3810,7 +3811,7 @@ void orderlist_display_order(int index)
 			x+=orderlist_column_items[ORDERLIST_COL_EXCHANGE_NAME].width+1;
 			break;
 		case ORDERLIST_COL_DESC:		//product_name
-			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DESC].width,vOrders[i].StatusMsg);
+			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DESC].width,STR(vOrders[i].StatusMsg).c_str());
 			x+=orderlist_column_items[ORDERLIST_COL_DESC].width+1;
 			break;
 		default:
@@ -4111,11 +4112,11 @@ void filllist_display_title()
 			x+=filllist_column_items[FILLLIST_COL_DIRECTION].width+1;
 			break;
 		case FILLLIST_COL_VOLUME:		//close
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_VOLUME].width,filllist_column_items[FILLLIST_COL_VOLUME].name);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_VOLUME].width+2,filllist_column_items[FILLLIST_COL_VOLUME].name);
 			x+=filllist_column_items[FILLLIST_COL_VOLUME].width+1;
 			break;
 		case FILLLIST_COL_PRICE:		//volume
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_PRICE].width,filllist_column_items[FILLLIST_COL_PRICE].name);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_PRICE].width+2,filllist_column_items[FILLLIST_COL_PRICE].name);
 			x+=filllist_column_items[FILLLIST_COL_PRICE].width+1;
 			break;
 		case FILLLIST_COL_TIME:		//volume
@@ -4127,11 +4128,11 @@ void filllist_display_title()
 			x+=filllist_column_items[FILLLIST_COL_SH_FLAG].width+1;
 			break;
 		case FILLLIST_COL_FILLID:		//close
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_FILLID].width,filllist_column_items[FILLLIST_COL_FILLID].name);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_FILLID].width+3,filllist_column_items[FILLLIST_COL_FILLID].name);
 			x+=filllist_column_items[FILLLIST_COL_FILLID].width+1;
 			break;
 		case FILLLIST_COL_ORDERID:		//close
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_ORDERID].width,filllist_column_items[FILLLIST_COL_ORDERID].name);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_ORDERID].width+3,filllist_column_items[FILLLIST_COL_ORDERID].name);
 			x+=filllist_column_items[FILLLIST_COL_ORDERID].width+1;
 			break;
 		case FILLLIST_COL_EXCHANGE_NAME:		//volume
@@ -4722,6 +4723,8 @@ void positionlist_display_position(const char *szAccID,const char *szExchangeID,
 			break;
 	if(i<positionlist_curr_pos || i>positionlist_curr_pos+positionlist_max_lines-1)
 		return;
+	if(vPositions[i].BuyVolume==0 && vPositions[i].SellVolume==0)
+		return;
 	y=i-positionlist_curr_pos+1;
 	x=0;
 
@@ -4750,7 +4753,7 @@ void positionlist_display_position(const char *szAccID,const char *szExchangeID,
 			x+=positionlist_column_items[POSITIONLIST_COL_SYMBOL].width;
 			break;
 		case POSITIONLIST_COL_SYMBOL_NAME:		//product_name
-			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_SYMBOL].width, STR(vquotes[j].product_name).c_str());
+			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_SYMBOL].width+2, STR(vquotes[j].product_name).c_str());
 			x+=positionlist_column_items[POSITIONLIST_COL_SYMBOL_NAME].width+1;
 			break;
 		case POSITIONLIST_COL_VOLUME:		//volume
@@ -4829,6 +4832,9 @@ void positionlist_display_position(const char *szAccID,const char *szExchangeID,
 
 void positionlist_display_positions()
 {
+	std::erase_if(vPositions, [](stPosition_t & pos) {
+		return !(pos.BuyingVolume!=0 || pos.SellingVolume!=0 || pos.BuyVolume!=0 || pos.SellingVolume != 0);
+	});
 	for(size_t i=0;i<vPositions.size();i++)
 		positionlist_display_position(vPositions[i].AccID,vPositions[i].ExchangeID,vPositions[i].InstrumentID);
 }

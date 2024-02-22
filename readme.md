@@ -19,6 +19,8 @@ TextTrader支持CTP期货交易柜台，也支持采用CTP兼容接口的其它�
 Windows：
 build/win32目录下，进入命令行执行nmake，或打开VS2019工程编译。
 
+cherichy修改版为64位，采用utf-8编码，xmake编译。
+
 Linux：
 build/linux目录下，执行make
 
@@ -45,7 +47,7 @@ build/MacOSX目录下，执行make，或打开xcode工程编译。
 - 
 ### 移动命令（所有窗口通用）： 
 
-- ​	上下左右：j、k、h、l及四个方向键
+- 上下左右：j、k、h、l及四个方向键
 - 翻页：f、b、u、d，支持上下翻页键，同时也支持^f、^b、^u、^d，即按住Control键
 - 上下行滚动：y、e，同时也支持^y、^e，即按住Control键
 - 屏幕顶部、中间、底部：H、M、L

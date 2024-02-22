@@ -169,64 +169,7 @@ std::mutex _lock;
 semaphore _sem;
 std::vector< std::function<void()> > _vTasks;
 
-// typedef struct {
-// 	char name[30];
-// 	int width;
-// } column_item_t;
-
-// const column_item_t column_items[]={
-// #define SYMBOL			0		// 合约
-// 	{"合约",		20},
-// #define SYMBOL_NAME		1		// 名称
-// 	{"名称",		20},
-// #define CLOSE			2		// 现价
-// 	{"现价",		10},
-// #define PERCENT			3		// 涨幅
-// 	{"涨幅",		10},
-// #define VOLUME			4		// 总量
-// 	{"总量",		10},
-// #define TRADE_VOLUME	5		// 现量
-// 	{"现量",		10},
-// #define ADVANCE			6		// 涨跌
-// 	{"涨跌",		10},
-// #define OPEN			7		// 开盘
-// 	{"开盘",		10},
-// #define HIGH			8		// 最高
-// 	{"最高",		10},
-// #define LOW				9		// 最低
-// 	{"最低",		10},
-// #define BID_PRICE		10		// 买价
-// 	{"买价",		10},
-// #define BID_VOLUME		11		// 买量
-// 	{"买量",		10},
-// #define ASK_PRICE		12		// 卖价
-// 	{"卖价",		10},
-// #define ASK_VOLUME		13		// 卖量
-// 	{"卖量",		10},
-// #define PREV_SETTLEMENT	14		// 昨结
-// 	{"昨结",		10},
-// #define SETTLEMENT		15		// 今结
-// 	{"今结",		10},
-// #define PREV_CLOSE		16		// 昨收
-// 	{"昨收",		10},
-// #define OPENINT			17		// 今仓
-// 	{"今仓",		10},
-// #define PREV_OPENINT	18		// 昨仓
-// 	{"昨仓",		10},
-// #define AVERAGE_PRICE	19		// 均价
-// 	{"均价",		10},
-// #define HIGH_LIMIT		20		// 涨停
-// 	{"涨停",		10},
-// #define LOW_LIMIT		21		// 跌停
-// 	{"跌停",		10},
-// #define EXCHANGE		22		// 交易所
-// 	{"交易所",		10},
-// #define TRADINGDAY		23		// 交易日
-// 	{"交易日",		10}
-// };
-
-// convert column_items into enums
-enum class COL_ITEMS{
+enum COL_ITEM{
 	SYMBOL = 0,
 	SYMBOL_NAME,
 	CLOSE,
@@ -644,34 +587,34 @@ void display_quotation(const char *InstrumentID)
 	for(int iter = 0,pos=0;iter<column_name.size();iter++,pos++){
 		if(mcolumns[iter]==false)
 			continue;
-		if(iter!= (int)COL_ITEMS::SYMBOL && iter!=(int)COL_ITEMS::CLOSE && pos<curr_col_pos)
+		if(iter!= (int)SYMBOL && iter!=(int)CLOSE && pos<curr_col_pos)
 			continue;
 		if(maxx-x<column_width[iter])
 			break;
-		switch(COL_ITEMS(iter)){
-		case COL_ITEMS::SYMBOL:		//InstrumentID
+		switch(COL_ITEM(iter)){
+		case SYMBOL:		//InstrumentID
 			mvprintw(y,x,"%-*s",column_width[iter],vquotes[i].InstrumentID);
 			x+=column_width[iter];
 			break;
-		case COL_ITEMS::SYMBOL_NAME:		//product_name
+		case SYMBOL_NAME:		//product_name
 			// mvprintw(y,x,"%-*s",column_width[iter],vquotes[i].product_name);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::CLOSE:		//close
+		case CLOSE:		//close
 			if(vquotes[i].LastPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 			mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].LastPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::PERCENT:		//close
+		case PERCENT:		//close
 			if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vquotes[i].LastPrice == DBL_MAX || fabs(vquotes[i].LastPrice) < 0.000001)
 				mvprintw(y, x, "%*c", column_width[iter], '-');
 			else
 				mvprintw(y, x, "%*.1f%%", column_width[iter] - 1, (vquotes[i].LastPrice - PreClosePrice) / PreClosePrice * 100.0);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::ADVANCE:		//close
+		case ADVANCE:		//close
 			if(vquotes[i].PreSettlementPrice==DBL_MAX || vquotes[i].PreSettlementPrice==0 || vquotes[i].LastPrice==DBL_MAX || vquotes[i].LastPrice==0)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else if(vquotes[i].LastPrice>vquotes[i].PreSettlementPrice)
@@ -680,112 +623,112 @@ void display_quotation(const char *InstrumentID)
 				mvprintw(y,x,"%*.*f",column_width[iter]-1,PRECISION,vquotes[i].LastPrice-vquotes[i].PreSettlementPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::VOLUME:		//volume
+		case VOLUME:		//volume
 			mvprintw(y,x,"%*d",column_width[iter],vquotes[i].Volume);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::BID_PRICE:		//bid price
+		case BID_PRICE:		//bid price
 			if(vquotes[i].BidPrice1==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].BidPrice1);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::BID_VOLUME:		//bi volume
+		case BID_VOLUME:		//bi volume
 			mvprintw(y,x,"%*d",column_width[iter],vquotes[i].BidVolume1);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::ASK_PRICE:		//ask price
+		case ASK_PRICE:		//ask price
 			if(vquotes[i].AskPrice1==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].AskPrice1);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::ASK_VOLUME:		//ask volume
+		case ASK_VOLUME:		//ask volume
 			mvprintw(y,x,"%*d",column_width[iter],vquotes[i].AskVolume1);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::OPEN:		//open
+		case OPEN:		//open
 			if(vquotes[i].OpenPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].OpenPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::PREV_SETTLEMENT:		//settlement
+		case PREV_SETTLEMENT:		//settlement
 			if(vquotes[i].PreSettlementPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].PreSettlementPrice);
 			x+=column_width[iter]+1;
 			break;
-		// case COL_ITEMS::TRADE_VOLUME:		//volume
+		// case TRADE_VOLUME:		//volume
 		// 	mvprintw(y,x,"%*d",column_width[iter],vquotes[i].trade_volume);
 		// 	x+=column_width[iter]+1;
 		// 	break;
-		// case COL_ITEMS::AVERAGE_PRICE:		//avgprice
+		// case AVERAGE_PRICE:		//avgprice
 		// 	if(vquotes[i].average_price==DBL_MAX)
 		// 		mvprintw(y,x,"%*c",column_width[iter],'-');
 		// 	else
 		// 		mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].average_price);
 		// 	x+=column_width[iter]+1;
 		// 	break;
-		case COL_ITEMS::HIGH:		//high
+		case HIGH:		//high
 			if(vquotes[i].HighestPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].HighestPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::LOW:		//low
+		case LOW:		//low
 			if(vquotes[i].LowestPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].LowestPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::HIGH_LIMIT:		//highlimit
+		case HIGH_LIMIT:		//highlimit
 			if (vquotes[i].UpperLimitPrice == DBL_MAX)
 				mvprintw(y, x, "%*c", column_width[iter], '-');
 			else
 				mvprintw(y, x, "%*.*f", column_width[iter], PRECISION, vquotes[i].UpperLimitPrice);
 			x += column_width[iter] + 1;
 			break;
-		case COL_ITEMS::LOW_LIMIT:		//lowlimit
+		case LOW_LIMIT:		//lowlimit
 			if (vquotes[i].LowerLimitPrice == DBL_MAX)
 				mvprintw(y, x, "%*c", column_width[iter], '-');
 			else
 				mvprintw(y, x, "%*.*f", column_width[iter], PRECISION, vquotes[i].LowerLimitPrice);
 			x += column_width[iter] + 1;
 			break;
-		case COL_ITEMS::SETTLEMENT:		//settlement
+		case SETTLEMENT:		//settlement
 			if(vquotes[i].SettlementPrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].SettlementPrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::PREV_CLOSE:		//preclose
+		case PREV_CLOSE:		//preclose
 			if(vquotes[i].PreClosePrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_width[iter],'-');
 			else
 				mvprintw(y,x,"%*.*f",column_width[iter],PRECISION,vquotes[i].PreClosePrice);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::OPENINT:		//openint
+		case OPENINT:		//openint
 			mvprintw(y,x,"%*d",column_width[iter],vquotes[i].OpenInterest);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::PREV_OPENINT:		//previous openint
+		case PREV_OPENINT:		//previous openint
 			mvprintw(y,x,"%*d",column_width[iter],vquotes[i].PreOpenInterest);
 			x+=column_width[iter]+1;
 			break;
-		case COL_ITEMS::EXCHANGE:		//exchange
+		case EXCHANGE:		//exchange
 			mvprintw(y, x, "%-*s", column_width[iter], vquotes[i].ExchangeID);
 			x += column_width[iter] + 1;
 			break;
-		case COL_ITEMS::TRADINGDAY:		//tradingday
+		case TRADINGDAY:		//tradingday
 			mvprintw(y, x, "%-*s", column_width[iter], vquotes[i].TradingDay);
 			x += column_width[iter] + 1;
 			break;
@@ -889,18 +832,18 @@ void display_title()
 	for(int iter = 0,pos=0;iter<column_name.size();iter++,pos++){
 		if(mcolumns[iter]==false)
 			continue;
-		if(iter!=(int)COL_ITEMS::SYMBOL && iter!=(int)COL_ITEMS::CLOSE && pos<curr_col_pos)
+		if(iter!=(int)SYMBOL && iter!=(int)CLOSE && pos<curr_col_pos)
 			continue;
 		if(maxx-x<column_width[iter])
 			break;
-		switch(COL_ITEMS(iter)){
-			case COL_ITEMS::SYMBOL:
+		switch(COL_ITEM(iter)){
+			case SYMBOL:
 				mvprintw(y,x,"%-*s",column_width[iter],column_name[iter].c_str());
 				x+=column_width[iter];
 				break;
-			case COL_ITEMS::SYMBOL_NAME:
-			case COL_ITEMS::EXCHANGE:
-			case COL_ITEMS::TRADINGDAY:
+			case SYMBOL_NAME:
+			case EXCHANGE:
+			case TRADINGDAY:
 				mvprintw(y,x,"%-*s",column_width[iter],column_name[iter].c_str());
 				x+=column_width[iter]+1;
 				break;

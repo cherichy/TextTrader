@@ -55,19 +55,7 @@
 #define KEYBOARD_NEXT 29 // 14 ^N
 #define KEYBOARD_PREVIOUS 30 // 16 ^P
 
-typedef struct {
-	int error_no;
-	char error_message[128];
-} apierror_t;
 
-apierror_t apierrorarray[]={
-	{-1,"未知错误"},
-	{-2,"API未启动"},
-	{-3,"未连接"},
-	{-4,"未登录"},
-	{-5,"已登录"},
-	{-6,"交易超时"}
-};
 
 std::string GBKToUtf8(const std::string& str)
 {
@@ -146,8 +134,6 @@ private:
 };
 void post_task(const std::function<void()>& task);
 
-int apierrorcount=sizeof(apierrorarray)/sizeof(apierror_t);
-char apierror_none[100]="";
 char tradetime[20];
 char status_message[100];
 
@@ -156,7 +142,7 @@ std::vector<CThostFtdcInstrumentField> vInstruments;
 std::map<std::string,size_t> mInstrumentIndex;
 std::vector<quotation_t> vquotes;
 std::vector<CThostFtdcOrderField> vOrders;
-std::vector<CThostFtdcTradeField> vFilledOrders;
+std::vector<CThostFtdcTradeField> vTrades;
 std::vector<stPosition_t> vPositions;
 std::map<std::string, size_t> mPositionIndex;
 std::vector<CThostFtdcTradingAccountField> vAccounts;
@@ -175,12 +161,12 @@ enum CONNECTION_STATUS {
 
 CONNECTION_STATUS TradeConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
 CONNECTION_STATUS MarketConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
+int WorkingStatus = WORKING_STATUS_NONE;
 std::mutex lock;
 semaphore sem;
 std::vector< std::function<void()> > vTasks;
 std::atomic<int> seconds_delayed;
 
-std::vector<CThostFtdcInvestorPositionField> vInvestorPositions;
 
 enum WIN_TYPE {
 	WIN_MAINBOARD =	0,
@@ -870,6 +856,35 @@ double GetSellProfitLoss(const char* InstrumentID)
 	return PL;
 }
 
+CThostFtdcInstrumentField& GetInstrument(const char* InstrumentID)
+{
+	return vInstruments[mInstrumentIndex[InstrumentID]];
+}
+
+stPosition_t& GetPosition(const char* InstrumentID)
+{
+	int index;
+	auto iterIndex = mPositionIndex.find(InstrumentID);
+	if (iterIndex != mPositionIndex.end()) {
+		index = iterIndex->second;
+	} else {
+		auto& Instrument = vInstruments[mInstrumentIndex[InstrumentID]];
+
+		stPosition_t Posi;
+		memset(&Posi, 0x00, sizeof(Posi));
+		strcpy(Posi.InstrumentID, InstrumentID);
+		strcpy(Posi.ExchangeID, Instrument.ExchangeID);
+		strcpy(Posi.BrokerID, pTradeRsp->BrokerID);
+		strcpy(Posi.InvestorID, pTradeRsp->UserID);
+
+		index = vPositions.size();
+		mPositionIndex[InstrumentID] = index;
+		vPositions.push_back(Posi);
+	}
+
+	return vPositions[index];
+}
+
 void HandleStatusClear()
 {
 	memset(status_message, 0x00, sizeof(status_message));
@@ -886,7 +901,7 @@ void HandleQueryAccount()
 	// memset(&Req, 0x00, sizeof(Req));
 	strcpy(Req.BrokerID, pTradeRsp->BrokerID);
 	strcpy(Req.InvestorID, pTradeRsp->UserID);
-	
+
 	pTradeRsp->m_pTradeReq->ReqQryTradingAccount(&Req, 0);
 }
 
@@ -949,7 +964,6 @@ int goto_symbol_window_from_mainboard()
 	
 	return 0;
 }
-
 int goto_order_window_from_mainboard()
 {
 	if(vquotes.empty())
@@ -1046,7 +1060,6 @@ int move_backward_half_page()
 		scroll_backward_1_line();
 	return 0;
 }
-
 int goto_page_top()
 {
 	if(vquotes.empty())
@@ -1101,67 +1114,6 @@ int goto_page_middle()
 	}else{
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
 		curr_line=max_lines/2+1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}
-
-	return 0;
-}
-
-int move_forward_1_line()
-{
-	if(vquotes.empty())
-		return 0;
-	if(curr_line==0){	// first select
-		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		return 0;
-	}
-	if(curr_line==vquotes.size()-curr_pos)	// Already bottom
-		return 0;
-	if(curr_line!=max_lines){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line++;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		move(1,0);
-		setscrreg(1,max_lines);
-		scroll(stdscr);
-		setscrreg(0,max_lines+1);
-		unsubscribe(curr_pos);
-		curr_pos++;
-		display_quotation(curr_pos+max_lines-1);	// new line
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		subscribe(curr_pos+max_lines-1);
-	}
-
-	return 0;
-}
-int move_backward_1_line()
-{
-	if(vquotes.empty())
-		return 0;
-	if(curr_line==0){	// first select
-		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		return 0;
-	}
-	if(curr_line==1 && curr_pos==0)	// Already top
-		return 0;
-	if(curr_line>1){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line--;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		move(1,0);
-		setscrreg(1,max_lines);
-		scrl(-1);
-		setscrreg(0,max_lines+1);
-		unsubscribe(curr_pos+max_lines-1);
-		curr_pos--;
-		display_quotation(curr_pos);
-		subscribe(curr_pos);
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}
 
@@ -1231,6 +1183,36 @@ int scroll_backward_1_line()
 	return 0;
 }
 
+int move_forward_1_line()
+{
+	if(vquotes.size()==0)
+		return 0;
+	if(curr_line==0){	// first select
+		curr_line=1;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		return 0;
+	}
+	if(curr_line==vquotes.size()-curr_pos)	// Already bottom
+		return 0;
+	if(curr_line!=max_lines){
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		curr_line++;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}else{
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		move(1,0);
+		setscrreg(1,max_lines);
+		scroll(stdscr);
+		setscrreg(0,max_lines+1);
+		unsubscribe(curr_pos);
+		curr_pos++;
+		display_quotation(curr_pos+max_lines-1);	// new line
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		subscribe(curr_pos+max_lines-1);
+	}
+
+	return 0;
+}
 int scroll_left_1_column()
 {
 	if(curr_col_pos==2)
@@ -1258,6 +1240,36 @@ int scroll_right_1_column()
 	return 0;
 }
 
+int move_backward_1_line()
+{
+	if(vquotes.size()==0)
+		return 0;
+	if(curr_line==0){	// first select
+		curr_line=1;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		return 0;
+	}
+	if(curr_line==1 && curr_pos==0)	// Already top
+		return 0;
+	if(curr_line>1){
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		curr_line--;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}else{
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		move(1,0);
+		setscrreg(1,max_lines);
+		scrl(-1);
+		setscrreg(0,max_lines+1);
+		unsubscribe(curr_pos+max_lines-1);
+		curr_pos--;
+		display_quotation(curr_pos);
+		subscribe(curr_pos);
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}
+
+	return 0;
+}
 int goto_file_top()
 {
 	if(vquotes.empty())
@@ -1794,6 +1806,15 @@ void display_quotation(size_t index)
 	}
 }
 
+void order_display_quotation(const char *InstrumentID)
+{
+	if(strcmp(vquotes[order_symbol_index].InstrumentID,InstrumentID)!=0)
+		return;
+	order_redraw();
+	if(order_corner_win){
+		order_corner_redraw();
+	}
+}
 void display_column(int col)
 {
 	int i=0,y,x;
@@ -1815,16 +1836,6 @@ void display_column(int col)
 	}
 }
 
-const char *apistrerror(int e)
-{
-	int i;
-
-	for(i=0;i<apierrorcount;i++){
-		if(e==apierrorarray[i].error_no)
-			return apierrorarray[i].error_message;
-	}
-	return apierror_none;
-}
 
 void check_status(std::string &tradestatus, std::string &quotestatus) {
 	switch (TradeConnectionStatus)
@@ -1885,16 +1896,6 @@ void display_status()
 	mvprintw(y-1,0,"[%d/%ld]",curr_pos+curr_line,vquotes.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s",pTradeRsp->UserID,tradetime);
-}
-
-void order_display_quotation(const char *InstrumentID)
-{
-	if(strcmp(vquotes[order_symbol_index].InstrumentID,InstrumentID)!=0)
-		return;
-	order_redraw();
-	if(order_corner_win){
-		order_corner_redraw();
-	}
 }
 void order_display_status()
 {
@@ -3771,10 +3772,10 @@ void filllist_reset(const char *UserID)
 	filllist_curr_line=0,filllist_curr_col=1,filllist_max_cols=7;
 	filllist_curr_pos=0,filllist_curr_col_pos=2;
 	std::vector<CThostFtdcTradeField>::iterator iter;
-	for(iter=vFilledOrders.begin();iter!=vFilledOrders.end();){
+	for(iter=vTrades.begin();iter!=vTrades.end();){
 		if(strcmp(iter->InvestorID,UserID)==0){
-			vFilledOrders.erase(iter);
-			iter=vFilledOrders.begin();
+			vTrades.erase(iter);
+			iter=vTrades.begin();
 			continue;
 		}else{
 			iter++;
@@ -3870,7 +3871,7 @@ void filllist_display_status()
 	move(y-1,0);
 	clrtoeol();
 	
-	mvprintw(y-1,0,"[%d/%ld]",filllist_curr_pos+filllist_curr_line,vFilledOrders.size());
+	mvprintw(y-1,0,"[%d/%ld]",filllist_curr_pos+filllist_curr_line,vTrades.size());
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->UserID,tradetime);
 }
@@ -3889,7 +3890,7 @@ void filllist_display_filledorder(int index)
 	x=0;
 
 	for(j=0;j<vquotes.size();j++)
-		if(strcmp(vquotes[j].InstrumentID,vFilledOrders[i].InstrumentID)==0)
+		if(strcmp(vquotes[j].InstrumentID,vTrades[i].InstrumentID)==0)
 			break;
 	if(j==vquotes.size())
 		return;
@@ -3905,11 +3906,11 @@ void filllist_display_filledorder(int index)
 			break;
 		switch(*iter){
 		case FILLLIST_COL_ACC_ID:		//InstrumentID
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_ACC_ID].width,vFilledOrders[i].InvestorID);
+			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_ACC_ID].width,vTrades[i].InvestorID);
 			x+=filllist_column_items[FILLLIST_COL_ACC_ID].width;
 			break;
 		case FILLLIST_COL_SYMBOL:		//InstrumentID
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_SYMBOL].width,vFilledOrders[i].InstrumentID);
+			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_SYMBOL].width,vTrades[i].InstrumentID);
 			x+=filllist_column_items[FILLLIST_COL_SYMBOL].width;
 			break;
 		case FILLLIST_COL_SYMBOL_NAME:		//Instrument.InstrumentName
@@ -3917,54 +3918,54 @@ void filllist_display_filledorder(int index)
 			x+=filllist_column_items[FILLLIST_COL_SYMBOL_NAME].width+1;
 			break;
 		case FILLLIST_COL_DIRECTION:		//close
-			if(vFilledOrders[i].Direction==THOST_FTDC_D_Buy && vFilledOrders[i].OffsetFlag==THOST_FTDC_OF_Open)
+			if(vTrades[i].Direction==THOST_FTDC_D_Buy && vTrades[i].OffsetFlag==THOST_FTDC_OF_Open)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width,"买开");
-			else if(vFilledOrders[i].Direction==THOST_FTDC_D_Buy && vFilledOrders[i].OffsetFlag==THOST_FTDC_OF_CloseToday)
+			else if(vTrades[i].Direction==THOST_FTDC_D_Buy && vTrades[i].OffsetFlag==THOST_FTDC_OF_CloseToday)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width,"买平今");
-			else if(vFilledOrders[i].Direction==THOST_FTDC_D_Sell && vFilledOrders[i].OffsetFlag==THOST_FTDC_OF_Open)
+			else if(vTrades[i].Direction==THOST_FTDC_D_Sell && vTrades[i].OffsetFlag==THOST_FTDC_OF_Open)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width," 卖开");
-			else if(vFilledOrders[i].Direction==THOST_FTDC_D_Sell && vFilledOrders[i].OffsetFlag==THOST_FTDC_OF_CloseToday)
+			else if(vTrades[i].Direction==THOST_FTDC_D_Sell && vTrades[i].OffsetFlag==THOST_FTDC_OF_CloseToday)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width," 卖平今");
-			else if(vFilledOrders[i].Direction==THOST_FTDC_D_Buy)
+			else if(vTrades[i].Direction==THOST_FTDC_D_Buy)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width,"买平");
 			else
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_DIRECTION].width," 卖平");
 			x+=filllist_column_items[FILLLIST_COL_DIRECTION].width+1;
 			break;
 		case FILLLIST_COL_VOLUME:		//volume
-			mvprintw(y,x,"%*d",filllist_column_items[FILLLIST_COL_VOLUME].width,vFilledOrders[i].Volume);
+			mvprintw(y,x,"%*d",filllist_column_items[FILLLIST_COL_VOLUME].width,vTrades[i].Volume);
 			x+=filllist_column_items[FILLLIST_COL_VOLUME].width+1;
 			break;
 		case FILLLIST_COL_PRICE:		//close
-			if(vFilledOrders[i].Price==DBL_MAX || vFilledOrders[i].Price==0)
+			if(vTrades[i].Price==DBL_MAX || vTrades[i].Price==0)
 				mvprintw(y,x,"%*c",filllist_column_items[FILLLIST_COL_PRICE].width,'-');
 			else
-				mvprintw(y,x,"%*.*f",filllist_column_items[FILLLIST_COL_PRICE].width,vquotes[j].precision,vFilledOrders[i].Price);
+				mvprintw(y,x,"%*.*f",filllist_column_items[FILLLIST_COL_PRICE].width,vquotes[j].precision,vTrades[i].Price);
 			x+=filllist_column_items[FILLLIST_COL_PRICE].width+1;
 			break;
 		case FILLLIST_COL_TIME:		//Instrument.InstrumentName
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_TIME].width,vFilledOrders[i].TradeTime);
+			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_TIME].width,vTrades[i].TradeTime);
 			x+=filllist_column_items[FILLLIST_COL_TIME].width+1;
 			break;
 		case FILLLIST_COL_SH_FLAG:		//close
-			if(vFilledOrders[i].HedgeFlag==THOST_FTDC_HF_Speculation)
+			if(vTrades[i].HedgeFlag==THOST_FTDC_HF_Speculation)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_SH_FLAG].width,"投");
-			else if(vFilledOrders[i].HedgeFlag==THOST_FTDC_HF_Hedge)
+			else if(vTrades[i].HedgeFlag==THOST_FTDC_HF_Hedge)
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_SH_FLAG].width," 保");
 			else
 				mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_SH_FLAG].width,"套利");
 			x+=filllist_column_items[FILLLIST_COL_SH_FLAG].width+1;
 			break;
 		case FILLLIST_COL_FILLID:		//Instrument.InstrumentName
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_FILLID].width,vFilledOrders[i].TradeID);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_FILLID].width,vTrades[i].TradeID);
 			x+=filllist_column_items[FILLLIST_COL_FILLID].width+1;
 			break;
 		case FILLLIST_COL_ORDERID:		//Instrument.InstrumentName
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_ORDERID].width,vFilledOrders[i].OrderSysID);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_ORDERID].width,vTrades[i].OrderSysID);
 			x+=filllist_column_items[FILLLIST_COL_ORDERID].width+1;
 			break;
 		case FILLLIST_COL_EXCHANGE_NAME:		//Instrument.InstrumentName
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width,vFilledOrders[i].ExchangeID);
+			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width,vTrades[i].ExchangeID);
 			x+=filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width+1;
 			break;
 		default:
@@ -3975,7 +3976,7 @@ void filllist_display_filledorder(int index)
 
 void filllist_display_filledorders()
 {
-	for(size_t i=filllist_curr_pos;i<=filllist_curr_pos+filllist_max_lines-1 && i<vFilledOrders.size();i++)
+	for(size_t i=filllist_curr_pos;i<=filllist_curr_pos+filllist_max_lines-1 && i<vTrades.size();i++)
 		filllist_display_filledorder(i);
 }
 
@@ -4002,14 +4003,14 @@ void filllist_scroll_right_1_column()
 
 void filllist_move_forward_1_line()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
 		filllist_redraw();
 		return;
 	}
-	if(filllist_curr_line==vFilledOrders.size()-filllist_curr_pos)	// Already bottom
+	if(filllist_curr_line==vTrades.size()-filllist_curr_pos)	// Already bottom
 		return;
 	if(filllist_curr_line!=filllist_max_lines){
 		filllist_curr_line++;
@@ -4021,7 +4022,7 @@ void filllist_move_forward_1_line()
 
 void filllist_move_backward_1_line()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4040,12 +4041,12 @@ void filllist_move_backward_1_line()
 
 void filllist_scroll_forward_1_line()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
 	}
-	if(filllist_curr_pos==vFilledOrders.size()-1){	//Already bottom
+	if(filllist_curr_pos==vTrades.size()-1){	//Already bottom
 		return;
 	}	
 	if(filllist_curr_line!=1)
@@ -4057,7 +4058,7 @@ void filllist_scroll_forward_1_line()
 
 void filllist_scroll_backward_1_line()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4075,7 +4076,7 @@ void filllist_scroll_backward_1_line()
 
 void filllist_goto_file_top()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4093,17 +4094,17 @@ void filllist_goto_file_top()
 
 void filllist_goto_file_bottom()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
 	}
-	if(filllist_curr_line==vFilledOrders.size()-filllist_curr_pos)	// Already bottom
+	if(filllist_curr_line==vTrades.size()-filllist_curr_pos)	// Already bottom
 		return;
-	if(vFilledOrders.size()-filllist_curr_pos<=filllist_max_lines){
-		filllist_curr_line=vFilledOrders.size()-filllist_curr_pos;
+	if(vTrades.size()-filllist_curr_pos<=filllist_max_lines){
+		filllist_curr_line=vTrades.size()-filllist_curr_pos;
 	}else{
-		filllist_curr_pos=vFilledOrders.size()-filllist_max_lines;
+		filllist_curr_pos=vTrades.size()-filllist_max_lines;
 		filllist_curr_line=filllist_max_lines;
 	}
 	filllist_redraw();
@@ -4111,7 +4112,7 @@ void filllist_goto_file_bottom()
 
 void filllist_goto_page_top()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4122,15 +4123,15 @@ void filllist_goto_page_top()
 }
 void filllist_goto_page_bottom()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
 	}
-	if(filllist_curr_line==vFilledOrders.size()-filllist_curr_pos)	// Already bottom
+	if(filllist_curr_line==vTrades.size()-filllist_curr_pos)	// Already bottom
 		return;
-	if(vFilledOrders.size()-filllist_curr_pos<filllist_max_lines){
-		filllist_curr_line=vFilledOrders.size()-filllist_curr_pos;
+	if(vTrades.size()-filllist_curr_pos<filllist_max_lines){
+		filllist_curr_line=vTrades.size()-filllist_curr_pos;
 	}else{
 		filllist_curr_line=filllist_max_lines;
 	}
@@ -4138,15 +4139,15 @@ void filllist_goto_page_bottom()
 }
 void filllist_goto_page_middle()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
 	}
-	if(vFilledOrders.size()-filllist_curr_pos==1)	// Only 1 line
+	if(vTrades.size()-filllist_curr_pos==1)	// Only 1 line
 		return;
-	if(vFilledOrders.size()-filllist_curr_pos<filllist_max_lines){
-		filllist_curr_line=(vFilledOrders.size()-filllist_curr_pos)/2+1;
+	if(vTrades.size()-filllist_curr_pos<filllist_max_lines){
+		filllist_curr_line=(vTrades.size()-filllist_curr_pos)/2+1;
 	}else{
 		filllist_curr_line=filllist_max_lines/2+1;
 	}
@@ -4210,21 +4211,13 @@ void positionlist_redraw()
 	positionlist_display_focus();
 }
 
-void positionlist_reset(const char *UserID)
+void positionlist_reset()
 {
 	// Position List Curses
 	positionlist_curr_line=0,positionlist_curr_col=1,positionlist_max_cols=7;
 	positionlist_curr_pos=0,positionlist_curr_col_pos=2;
-	std::vector<stPosition_t>::iterator iter;
-	for(iter=vPositions.begin();iter!=vPositions.end();){
-		if(strcmp(iter->InvestorID,UserID)==0){
-			vPositions.erase(iter);
-			iter=vPositions.begin();
-			continue;
-		}else{
-			iter++;
-		}
-	}
+
+	vPositions.clear();
 	if(working_window==WIN_POSITION)
 		positionlist_redraw();
 }
@@ -7324,7 +7317,7 @@ int input_parse_log(int *num,int *cmd)
 
 int goto_order_window_from_filllist()
 {
-	if(vFilledOrders.empty())
+	if(vTrades.empty())
 		return 0;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -7333,7 +7326,7 @@ int goto_order_window_from_filllist()
 	}
 	int i;
 	for(i=0;i<vquotes.size();i++){
-		if(strcmp(vquotes[i].InstrumentID,vFilledOrders[filllist_curr_pos+filllist_curr_line-1].InstrumentID)==0)
+		if(strcmp(vquotes[i].InstrumentID,vTrades[filllist_curr_pos+filllist_curr_line-1].InstrumentID)==0)
 			break;
 	}
 	if(i==vquotes.size())
@@ -7342,7 +7335,7 @@ int goto_order_window_from_filllist()
 	working_window=WIN_ORDER;
 	order_curr_price=0;
 	order_page_top_price=0;
-	strcpy(order_curr_accname,vFilledOrders[filllist_curr_pos+filllist_curr_line-1].InvestorID);
+	strcpy(order_curr_accname,vTrades[filllist_curr_pos+filllist_curr_line-1].InvestorID);
 	order_refresh_screen();
 	order_centralize_current_price();
 	subscribe(order_symbol_index);
@@ -7888,7 +7881,7 @@ void CTradeRsp::HandleRspUserLogin(CThostFtdcRspUserLoginField& RspUserLogin,CTh
 	if (strcmp(RspUserLogin.TradingDay, TradingDay) != 0) {
 		orderlist_reset(UserID);
 		filllist_reset(UserID);
-		positionlist_reset(UserID);
+		positionlist_reset();
 		acclist_reset(UserID);
 	}
 
@@ -7944,10 +7937,6 @@ void CTradeRsp::HandleRspQryInstrument(CThostFtdcInstrumentField& Instrument, CT
 		memset(&quote,0x00,sizeof(quote));
 		strcpy(quote.InstrumentID,Instrument.InstrumentID);
 		strcpy(quote.ExchangeID,Instrument.ExchangeID);
-		if(strlen(Instrument.InstrumentName))
-			strcpy(quote.Instrument.InstrumentName,Instrument.InstrumentName);
-		else
-			strcpy(quote.Instrument.InstrumentName, Instrument.InstrumentID);
 		if(Instrument.PriceTick>=1)
 			quote.precision=0;
 		else if(Instrument.PriceTick>=0.1)
@@ -7966,6 +7955,7 @@ void CTradeRsp::HandleRspQryInstrument(CThostFtdcInstrumentField& Instrument, CT
 	
 		index = vquotes.size();
 		mInstrumentIndex[Instrument.InstrumentID] = index;
+		vInstruments.push_back(Instrument);
 		vquotes.push_back(quote);
 		
 		display_quotation(index);
@@ -8032,14 +8022,14 @@ void CTradeRsp::HandleRspQryTrade(CThostFtdcTradeField& Trade, CThostFtdcRspInfo
 	}
 	std::vector<CThostFtdcTradeField>::iterator iter;
 	if(strlen(Trade.InstrumentID)!=0){
-		for(iter=vFilledOrders.begin();iter!=vFilledOrders.end();iter++){
+		for(iter=vTrades.begin();iter!=vTrades.end();iter++){
 			if(strcmp(Trade.ExchangeID,iter->ExchangeID)==0 && strcmp(Trade.OrderSysID,iter->OrderSysID)==0){
 				memcpy(iter->BrokerID,&Trade,sizeof(CThostFtdcTradeField));
 				break;
 			}
 		}
-		if(iter==vFilledOrders.end())
-			vFilledOrders.push_back(Trade);
+		if(iter==vTrades.end())
+			vTrades.push_back(Trade);
 		switch(working_window){
 		case WIN_FILLLIST:
 			filllist_redraw();
@@ -8158,242 +8148,96 @@ void CTradeRsp::HandleRspQryInvestorPosition(CThostFtdcInvestorPositionField& In
 		return;
 	}
 	if(strlen(InvestorPosition.InstrumentID)>0 && InvestorPosition.HedgeFlag == THOST_FTDC_HF_Speculation)
-		vInvestorPositions.push_back(InvestorPosition);
+		m_vInvestorPositions.push_back(InvestorPosition);
 	if(!bIsLast)
 		return;
 	status_print("查询持仓成功.");
 
 	// 清空持仓
-	positionlist_reset(UserID);
+	positionlist_reset();
 
 	// 通过持仓信息取得昨仓
-	std::vector<CThostFtdcInvestorPositionField>::iterator iterInvestorPosition;
-	std::vector<stPosition_t>::iterator iter;
-	for(iterInvestorPosition=vInvestorPositions.begin();iterInvestorPosition!=vInvestorPositions.end();iterInvestorPosition++){
-		for(iter=vPositions.begin();iter!=vPositions.end();iter++){
-			if(strcmp(iterInvestorPosition->InstrumentID,iter->InstrumentID)==0){
-				if(iterInvestorPosition->PosiDirection==THOST_FTDC_PD_Long){
-					iter->AvgBuyPrice = iterInvestorPosition->PreSettlementPrice;
-					iter->BuyVolume = iterInvestorPosition->YdPosition;
-					iter->Volume += iterInvestorPosition->YdPosition;
-				}else{
-					iter->AvgSellPrice = iterInvestorPosition->PreSettlementPrice;
-					iter->SellVolume = iterInvestorPosition->YdPosition;
-					iter->Volume -= iterInvestorPosition->YdPosition;
-				}
-				iter->Price = iterInvestorPosition->PreSettlementPrice;
-				break;
-			}
-		}
-		if(iter==vPositions.end()){
-			stPosition_t Posi;
-			memset(&Posi,0x00,sizeof(Posi));
-			strcpy(Posi.InstrumentID,iterInvestorPosition->InstrumentID);
-			strcpy(Posi.BrokerID,iterInvestorPosition->BrokerID);
-			strcpy(Posi.InvestorID,iterInvestorPosition->InvestorID);
-			for(auto & vquote : vquotes){
-				if(strcmp(Posi.InstrumentID,vquote.InstrumentID)==0){
-					strcpy(Posi.ExchangeID,vquote.ExchangeID);
-					break;
-				}
-			}
+	for(std::vector<CThostFtdcInvestorPositionField>::iterator iterInvestorPosition= m_vInvestorPositions.begin();iterInvestorPosition!= m_vInvestorPositions.end();iterInvestorPosition++){
+		auto& Posi = GetPosition(iterInvestorPosition->InstrumentID);
+		auto& Instrument = GetInstrument(iterInvestorPosition->InstrumentID);
 
-			if(iterInvestorPosition->PosiDirection==THOST_FTDC_PD_Long){
-				Posi.AvgBuyPrice = iterInvestorPosition->PreSettlementPrice;
-				Posi.BuyVolume = iterInvestorPosition->YdPosition;
-				Posi.Volume += iterInvestorPosition->YdPosition;
-			}else{
-				Posi.AvgSellPrice = iterInvestorPosition->PreSettlementPrice;
-				Posi.SellVolume = iterInvestorPosition->YdPosition;
-				Posi.Volume -= iterInvestorPosition->YdPosition;
-			}
-			Posi.Price = iterInvestorPosition->PreSettlementPrice;
-			mPositionIndex[Posi.InstrumentID] = vPositions.size();
-			vPositions.push_back(Posi);
+		if(iterInvestorPosition->PosiDirection==THOST_FTDC_PD_Long){
+			Posi.AvgBuyPrice = iterInvestorPosition->PreSettlementPrice;
+			Posi.BuyVolume = iterInvestorPosition->YdPosition;
+			Posi.Margin += Posi.AvgBuyPrice * Posi.BuyVolume * Instrument.VolumeMultiple;
+			Posi.Volume += iterInvestorPosition->YdPosition;
+		}else{
+			Posi.AvgSellPrice = iterInvestorPosition->PreSettlementPrice;
+			Posi.SellVolume = iterInvestorPosition->YdPosition;
+			Posi.Margin += Posi.AvgSellPrice * Posi.SellVolume * Instrument.VolumeMultiple;
+			Posi.Volume -= iterInvestorPosition->YdPosition;
 		}
+		Posi.Price = iterInvestorPosition->PreSettlementPrice;
 	}
 
-	// 删除vInvestorPositions中相应投资者的持仓信息
-	vInvestorPositions.clear();
+	m_vInvestorPositions.clear();
 
 	// 通过成交明细更新持仓
 	std::vector<CThostFtdcTradeField>::iterator iterTrade;
-	for(iterTrade=vFilledOrders.begin();iterTrade!=vFilledOrders.end();iterTrade++){
-		for(iter=vPositions.begin();iter!=vPositions.end();iter++){
-			if(strcmp(iter->InstrumentID,iterTrade->InstrumentID)==0){
-				if(iterTrade->Direction==THOST_FTDC_D_Buy){
-					if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
-						iter->AvgBuyPrice = (iter->AvgBuyPrice * iter->BuyVolume + iterTrade->Price * iterTrade->Volume) / (iter->BuyVolume + iterTrade->Volume);
-						iter->BuyVolume+=iterTrade->Volume;
-						iter->TodayBuyVolume+=iterTrade->Volume;
-					}else{
-						if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (iter->SellVolume-iter->TodaySellVolume)==0)
-							iter->TodaySellVolume-=iterTrade->Volume;
-						iter->SellVolume-=iterTrade->Volume;
-						if (iter->SellVolume == 0)
-							iter->AvgSellPrice = 0;
-					}
-					iter->Volume+=iterTrade->Volume;
-				}else{
-					if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
-						iter->AvgSellPrice = (iter->AvgSellPrice * iter->SellVolume + iterTrade->Price * iterTrade->Volume) / (iter->SellVolume + iterTrade->Volume);
-						iter->SellVolume+=iterTrade->Volume;
-						iter->TodaySellVolume+=iterTrade->Volume;
-					}else{
-						if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (iter->BuyVolume-iter->TodayBuyVolume)==0)
-							iter->TodayBuyVolume-=iterTrade->Volume;
-						iter->BuyVolume-=iterTrade->Volume;
-						if (iter->BuyVolume == 0)
-							iter->AvgBuyPrice = 0;
-					}
-					iter->Volume-=iterTrade->Volume;
-				}
-				if (iter->BuyVolume > iter->SellVolume)
-					iter->Price = iter->AvgBuyPrice;
-				else
-					iter->Price = iter->AvgSellPrice;
-				break;
-			}
-		}
-		if(iter==vPositions.end()){
-			stPosition_t Posi;
-			memset(&Posi,0x00,sizeof(Posi));
-			strcpy(Posi.InstrumentID,iterTrade->InstrumentID);
-			strcpy(Posi.BrokerID,iterTrade->BrokerID);
-			strcpy(Posi.InvestorID,iterTrade->InvestorID);
-			strcpy(Posi.ExchangeID,iterTrade->ExchangeID);
-			if(iterTrade->Direction==THOST_FTDC_D_Buy){
-				if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
-					Posi.AvgBuyPrice = (Posi.AvgBuyPrice * Posi.BuyVolume + iterTrade->Price * iterTrade->Volume) / (Posi.BuyVolume + iterTrade->Volume);
-					Posi.BuyVolume+=iterTrade->Volume;
-					Posi.TodayBuyVolume+=iterTrade->Volume;
-				}else{
-					if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-						Posi.TodaySellVolume-=iterTrade->Volume;
-					Posi.SellVolume-=iterTrade->Volume;
-					if(Posi.SellVolume == 0)
-						Posi.AvgSellPrice = 0;
-				}
-				Posi.Volume+=iterTrade->Volume;
+	for(iterTrade=vTrades.begin();iterTrade!=vTrades.end();iterTrade++){
+		auto& Posi = GetPosition(iterTrade->InstrumentID);
+		auto& Instrument = GetInstrument(iterTrade->InstrumentID);
+
+		if(iterTrade->Direction==THOST_FTDC_D_Buy){
+			if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
+				Posi.AvgBuyPrice = (Posi.AvgBuyPrice * Posi.BuyVolume + iterTrade->Price * iterTrade->Volume) / (Posi.BuyVolume + iterTrade->Volume);
+				Posi.BuyVolume+=iterTrade->Volume;
+				Posi.TodayBuyVolume+=iterTrade->Volume;
 			}else{
-				if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
-					Posi.AvgSellPrice = (Posi.AvgSellPrice * Posi.SellVolume + iterTrade->Price * iterTrade->Volume) / (Posi.SellVolume + iterTrade->Volume);
-					Posi.SellVolume+=iterTrade->Volume;
-					Posi.TodaySellVolume+=iterTrade->Volume;
-				}else{
-					if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-						Posi.TodayBuyVolume-=iterTrade->Volume;
-					Posi.BuyVolume-=iterTrade->Volume;
-					if (Posi.BuyVolume == 0)
-						Posi.AvgBuyPrice = 0;
-				}
-				Posi.Volume-=iterTrade->Volume;
+				if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
+					Posi.TodaySellVolume-=iterTrade->Volume;
+				Posi.SellVolume-=iterTrade->Volume;
+				if (Posi.SellVolume == 0)
+					Posi.AvgSellPrice = 0;
 			}
-			if (Posi.BuyVolume > Posi.SellVolume)
-				Posi.Price = Posi.AvgBuyPrice;
-			else
-				Posi.Price = Posi.AvgSellPrice;
-			mPositionIndex[Posi.InstrumentID] = vPositions.size();
-			vPositions.push_back(Posi);
+			Posi.Volume+=iterTrade->Volume;
+		}else{
+			if(iterTrade->OffsetFlag==THOST_FTDC_OF_Open){
+				Posi.AvgSellPrice = (Posi.AvgSellPrice * Posi.SellVolume + iterTrade->Price * iterTrade->Volume) / (Posi.SellVolume + iterTrade->Volume);
+				Posi.SellVolume+=iterTrade->Volume;
+				Posi.TodaySellVolume+=iterTrade->Volume;
+			}else{
+				if(iterTrade->OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+					Posi.TodayBuyVolume-=iterTrade->Volume;
+				Posi.BuyVolume-=iterTrade->Volume;
+				if (Posi.BuyVolume == 0)
+					Posi.AvgBuyPrice = 0;
+			}
+			Posi.Volume-=iterTrade->Volume;
 		}
+		if (Posi.BuyVolume > Posi.SellVolume)
+			Posi.Price = Posi.AvgBuyPrice;
+		else
+			Posi.Price = Posi.AvgSellPrice;
 	}
 
 
 	// 通过委托明细冻结持仓
 	std::vector<CThostFtdcOrderField>::iterator iterOrder;
 	for(iterOrder=vOrders.begin();iterOrder!=vOrders.end();iterOrder++){
-		if(strcmp(iterOrder->InvestorID,UserID)!=0)
-			continue;
 		if(iterOrder->OrderStatus!=THOST_FTDC_OST_Canceled && iterOrder->OrderStatus!=THOST_FTDC_OST_AllTraded){
-			std::vector<stPosition_t>::iterator iterPosi;
-			for(iterPosi=vPositions.begin();iterPosi!=vPositions.end();iterPosi++){
-				if(strcmp(iterOrder->InvestorID,iterPosi->InvestorID)==0 && strcmp(iterOrder->InstrumentID,iterPosi->InstrumentID)==0)
-					break;
-			}
-			if(iterPosi!=vPositions.end()){
-				switch(iterOrder->OrderStatus){
-				case THOST_FTDC_OST_PartTradedQueueing:	//部分成交冻结相应的仓位
-					if(iterOrder->Direction==THOST_FTDC_D_Buy){
-						if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->SellVolume-iterPosi->TodaySellVolume)==0)
-								iterPosi->TodayFrozenSellVolume+=iterOrder->VolumeTotal;
-							iterPosi->FrozenSellVolume+=iterOrder->VolumeTotal;
-						}
-						iterPosi->BuyingVolume+=iterOrder->VolumeTotal;
-					}else{
-						if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->BuyVolume-iterPosi->TodayBuyVolume)==0)
-								iterPosi->TodayFrozenBuyVolume+=iterOrder->VolumeTotal;
-							iterPosi->FrozenBuyVolume+=iterOrder->VolumeTotal;
-						}
-						iterPosi->SellingVolume+=iterOrder->VolumeTotal;
-					}
-					break;
-				default:	// 未成交冻结仓位
-					if(iterOrder->Direction==THOST_FTDC_D_Buy){
-						if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->SellVolume-iterPosi->TodaySellVolume)==0)
-								iterPosi->TodayFrozenSellVolume+=iterOrder->VolumeTotal;
-							iterPosi->FrozenSellVolume+=iterOrder->VolumeTotal;
-						}
-						iterPosi->BuyingVolume+=iterOrder->VolumeTotal;
-					}else{
-						if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->BuyVolume-iterPosi->TodayBuyVolume)==0)
-								iterPosi->TodayFrozenBuyVolume+=iterOrder->VolumeTotal;
-							iterPosi->FrozenBuyVolume+=iterOrder->VolumeTotal;
-						}
-						iterPosi->SellingVolume+=iterOrder->VolumeTotal;
-					}
-					break;
+			auto& Posi = GetPosition(iterOrder->InstrumentID);
+			auto& Instrument = GetInstrument(iterOrder->InstrumentID);
+
+			if(iterOrder->Direction==THOST_FTDC_D_Buy){
+				if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+					if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume- Posi.TodaySellVolume)==0)
+						Posi.TodayFrozenSellVolume+=iterOrder->VolumeTotal;
+					Posi.FrozenSellVolume+=iterOrder->VolumeTotal;
 				}
+				Posi.BuyingVolume+=iterOrder->VolumeTotal;
 			}else{
-				if(iterOrder->OrderStatus!=THOST_FTDC_OST_Canceled && iterOrder->OrderStatus!=THOST_FTDC_OST_AllTraded){ // 如果是新定单，且已撤消或已全部成交，就不会影响处理冻结仓位
-					stPosition_t Posi;
-					memset(&Posi,0x00,sizeof(Posi));
-					strcpy(Posi.InstrumentID,iterOrder->InstrumentID);
-					strcpy(Posi.BrokerID,iterOrder->BrokerID);
-					strcpy(Posi.InvestorID,iterOrder->InvestorID);
-					strcpy(Posi.ExchangeID,iterOrder->ExchangeID);
-					switch(iterOrder->OrderStatus){
-					case THOST_FTDC_OST_PartTradedQueueing:	//部分成交冻结相应的仓位
-						if(iterOrder->Direction==THOST_FTDC_D_Buy){
-							if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=iterOrder->VolumeTotal;
-								Posi.FrozenSellVolume+=iterOrder->VolumeTotal;
-							}
-							Posi.BuyingVolume+=iterOrder->VolumeTotal;
-						}else{
-							if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=iterOrder->VolumeTotal;
-								Posi.FrozenBuyVolume+=iterOrder->VolumeTotal;
-							}
-							Posi.SellingVolume+=iterOrder->VolumeTotal;
-						}
-						break;
-					default:	// 未成交冻结仓位
-						if(iterOrder->Direction==THOST_FTDC_D_Buy){
-							if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=iterOrder->VolumeTotal;
-								Posi.FrozenSellVolume+=iterOrder->VolumeTotal;
-							}
-							Posi.BuyingVolume+=iterOrder->VolumeTotal;
-						}else{
-							if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=iterOrder->VolumeTotal;
-								Posi.FrozenBuyVolume+=iterOrder->VolumeTotal;
-							}
-							Posi.SellingVolume+=iterOrder->VolumeTotal;
-						}
-						break;
-					}
-					mPositionIndex[Posi.InstrumentID] = vPositions.size();
-					vPositions.push_back(Posi);
+				if(iterOrder->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+					if(iterOrder->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume- Posi.TodayBuyVolume)==0)
+						Posi.TodayFrozenBuyVolume+=iterOrder->VolumeTotal;
+					Posi.FrozenBuyVolume+=iterOrder->VolumeTotal;
 				}
+				Posi.SellingVolume+=iterOrder->VolumeTotal;
 			}
 		}
 	}
@@ -8411,6 +8255,7 @@ void CTradeRsp::HandleRspQryInvestorPosition(CThostFtdcInvestorPositionField& In
 	}
 
 	// 持仓处理完毕,查询资金
+	WorkingStatus = WORKING_STATUS_WORKING;
 }
 
 void CTradeRsp::HandleRspQryTradingAccount(CThostFtdcTradingAccountField& TradingAccount, CThostFtdcRspInfoField& RspInfo, int nRequestID, bool bIsLast)
@@ -8441,6 +8286,19 @@ void CTradeRsp::HandleRspQryTradingAccount(CThostFtdcTradingAccountField& Tradin
 
 void CTradeRsp::HandleRtnOrder(CThostFtdcOrderField& Order)
 {
+	if (WorkingStatus != WORKING_STATUS_WORKING) {
+		auto iter = vOrders.begin();
+		for (; iter != vOrders.end(); iter++) {
+			if (Order.FrontID == iter->FrontID && Order.SessionID == iter->SessionID && strcmp(Order.OrderRef, iter->OrderRef) == 0) {
+				memcpy(&(*iter), &Order, sizeof(Order));
+				break;
+			}
+		}
+		if(iter==vOrders.end())
+			vOrders.push_back(Order);
+		return;
+	}
+
 	char action[10];
 	if (Order.Direction == THOST_FTDC_D_Buy && Order.CombOffsetFlag[0] == THOST_FTDC_OF_Open)
 		strcpy(action, "买开");
@@ -8471,79 +8329,73 @@ void CTradeRsp::HandleRtnOrder(CThostFtdcOrderField& Order)
 	status_print( "%s %.2f %s 剩余%d手 %s. %s", Order.InstrumentID, Order.LimitPrice, action, Order.VolumeTotalOriginal-Order.VolumeTraded, order_status, Order.StatusMsg);
 
 	std::vector<CThostFtdcOrderField>::iterator iter;
-	std::vector<stPosition_t>::iterator iterPosi;
 	std::vector<CThostFtdcInputOrderActionField>::iterator iterCancelingOrder;
 	bool bExists=false;
 	if(Order.InstrumentID[0]!='\0'){
+		auto& Posi = GetPosition(Order.InstrumentID);
+		auto& Instrument = GetInstrument(Order.InstrumentID);
+
 		for(iter=vOrders.begin();iter!=vOrders.end();iter++){
 			if(Order.FrontID==iter->FrontID && Order.SessionID==iter->SessionID && strcmp(Order.OrderRef,iter->OrderRef)==0){
 				if(iter->OrderStatus!=THOST_FTDC_OST_Canceled && iter->OrderStatus!=THOST_FTDC_OST_AllTraded){
-					for(iterPosi=vPositions.begin();iterPosi!=vPositions.end();iterPosi++){
-						if(strcmp(Order.InvestorID,iterPosi->InvestorID)==0 && strcmp(Order.InstrumentID,iterPosi->InstrumentID)==0)
-							break;
-					}
-					if(iterPosi!=vPositions.end()){
-						switch(Order.OrderStatus){
-						case THOST_FTDC_OST_AllTraded:	//成交后释放冻结仓位
-						case THOST_FTDC_OST_Canceled:	//撤消后释放冻结仓位
-							if(Order.Direction==THOST_FTDC_D_Buy){
-								if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-									if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->SellVolume-iterPosi->TodaySellVolume)==0)
-										iterPosi->TodayFrozenSellVolume-=iter->VolumeTotal;
-									iterPosi->FrozenSellVolume-=iter->VolumeTotal;
-								}
-								iterPosi->BuyingVolume-=iter->VolumeTotal;
-							}else{
-								if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-									if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->BuyVolume-iterPosi->TodayBuyVolume)==0)
-										iterPosi->TodayFrozenBuyVolume-=iter->VolumeTotal;
-									iterPosi->FrozenBuyVolume-=iter->VolumeTotal;
-								}
-								iterPosi->SellingVolume-=iter->VolumeTotal;
+					switch(Order.OrderStatus){
+					case THOST_FTDC_OST_AllTraded:	//成交后释放冻结仓位
+					case THOST_FTDC_OST_Canceled:	//撤消后释放冻结仓位
+						if(Order.Direction==THOST_FTDC_D_Buy){
+							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
+									Posi.TodayFrozenSellVolume-=iter->VolumeTotal;
+								Posi.FrozenSellVolume-=iter->VolumeTotal;
 							}
-							for(iterCancelingOrder=vCancelingOrders.begin();iterCancelingOrder!=vCancelingOrders.end();iterCancelingOrder++){
-								if(strcmp(iterCancelingOrder->InstrumentID,iter->InstrumentID)==0 && iterCancelingOrder->FrontID==iter->FrontID && iterCancelingOrder->SessionID==iter->SessionID && strcmp(iterCancelingOrder->OrderRef,iter->OrderRef)==0){
-									vCancelingOrders.erase(iterCancelingOrder);	// 移除正在撤消的报单
+							Posi.BuyingVolume-=iter->VolumeTotal;
+						}else{
+							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+									Posi.TodayFrozenBuyVolume-=iter->VolumeTotal;
+								Posi.FrozenBuyVolume-=iter->VolumeTotal;
+							}
+							Posi.SellingVolume-=iter->VolumeTotal;
+						}
+						for(iterCancelingOrder=vCancelingOrders.begin();iterCancelingOrder!=vCancelingOrders.end();iterCancelingOrder++){
+							if(strcmp(iterCancelingOrder->InstrumentID,iter->InstrumentID)==0 && iterCancelingOrder->FrontID==iter->FrontID && iterCancelingOrder->SessionID==iter->SessionID && strcmp(iterCancelingOrder->OrderRef,iter->OrderRef)==0){
+								vCancelingOrders.erase(iterCancelingOrder);	// 移除正在撤消的报单
+								break;
+							}
+						}
+						memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
+						if(Order.OrderStatus==THOST_FTDC_OST_Canceled){
+							// 改单，如果撤消成功，则报入新订单
+							std::vector<CThostFtdcOrderField>::iterator i;
+							for(i=m_mMovingOrders.begin();i!=m_mMovingOrders.end();i++){
+								if(Order.FrontID==i->FrontID && Order.SessionID==i->SessionID && strcmp(Order.OrderRef,i->OrderRef)==0){
+									OrderInsert(Order.InstrumentID,Order.Direction,Order.CombOffsetFlag[0],i->LimitPrice,Order.VolumeTotal);
+									m_mMovingOrders.erase(i);
 									break;
 								}
 							}
-							memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
-							if(Order.OrderStatus==THOST_FTDC_OST_Canceled){
-								// 改单，如果撤消成功，则报入新订单
-								std::vector<CThostFtdcOrderField>::iterator i;
-								for(i=m_mMovingOrders.begin();i!=m_mMovingOrders.end();i++){
-									if(Order.FrontID==i->FrontID && Order.SessionID==i->SessionID && strcmp(Order.OrderRef,i->OrderRef)==0){
-										OrderInsert(Order.InstrumentID,Order.Direction,Order.CombOffsetFlag[0],i->LimitPrice,Order.VolumeTotal);
-										m_mMovingOrders.erase(i);
-										break;
-									}
-								}
-							}						
-							break;
-						case THOST_FTDC_OST_PartTradedQueueing:	//部分成交释放相应的冻结仓位
-							if(Order.Direction==THOST_FTDC_D_Buy){
-								if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-									if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->SellVolume-iterPosi->TodaySellVolume)==0)
-										iterPosi->TodayFrozenSellVolume-=iter->VolumeTotal-Order.VolumeTotal;
-									iterPosi->FrozenSellVolume-=iter->VolumeTotal-Order.VolumeTotal;
-								}
-								iterPosi->BuyingVolume-=iter->VolumeTotal-Order.VolumeTotal;
-							}else{
-								if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-									if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->BuyVolume-iterPosi->TodayBuyVolume)==0)
-										iterPosi->TodayFrozenBuyVolume-=iter->VolumeTotal-Order.VolumeTotal;
-									iterPosi->FrozenBuyVolume-=iter->VolumeTotal-Order.VolumeTotal;
-								}
-								iterPosi->SellingVolume-=iter->VolumeTotal-Order.VolumeTotal;
-							}
-							memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
-							break;
-						default:
-							memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
-							break;
 						}
-					}else{
+						break;
+					case THOST_FTDC_OST_PartTradedQueueing:	//部分成交释放相应的冻结仓位
+						if(Order.Direction==THOST_FTDC_D_Buy){
+							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
+									Posi.TodayFrozenSellVolume-=iter->VolumeTotal-Order.VolumeTotal;
+								Posi.FrozenSellVolume-=iter->VolumeTotal-Order.VolumeTotal;
+							}
+							Posi.BuyingVolume-=iter->VolumeTotal-Order.VolumeTotal;
+						}else{
+							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+									Posi.TodayFrozenBuyVolume-=iter->VolumeTotal-Order.VolumeTotal;
+								Posi.FrozenBuyVolume-=iter->VolumeTotal-Order.VolumeTotal;
+							}
+							Posi.SellingVolume-=iter->VolumeTotal-Order.VolumeTotal;
+						}
 						memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
+						break;
+					default:
+						memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
+						break;
 					}
 				}else{
 					memcpy(iter->BrokerID,&Order,sizeof(CThostFtdcOrderField));
@@ -8553,96 +8405,42 @@ void CTradeRsp::HandleRtnOrder(CThostFtdcOrderField& Order)
 			}
 		}
 		if(!bExists){
-			if(Order.OrderStatus!=THOST_FTDC_OST_Canceled && Order.OrderStatus!=THOST_FTDC_OST_AllTraded){ // 如果是新定单，且已撤消或已全部成交，就不会影响处理冻结仓位
-				auto iterIndex = mPositionIndex.find(Order.InstrumentID);
-				if (iterIndex != mPositionIndex.end()) {
-					auto& Posi = vPositions[iterIndex->second];
-					switch(Order.OrderStatus){
-					case THOST_FTDC_OST_PartTradedQueueing:	//部分成交冻结相应的仓位
-						if(Order.Direction==THOST_FTDC_D_Buy){
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
-								Posi.FrozenSellVolume+=Order.VolumeTotal;
-							}
-							Posi.BuyingVolume+=Order.VolumeTotal;
-						}else{
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
-								Posi.FrozenBuyVolume+=Order.VolumeTotal;
-							}
-							Posi.SellingVolume+=Order.VolumeTotal;
+			if(Order.OrderStatus!=THOST_FTDC_OST_Canceled && Order.OrderStatus!=THOST_FTDC_OST_AllTraded){ // ������¶��������ѳ�������ȫ���ɽ����Ͳ���Ӱ�촦�����λ
+				switch(Order.OrderStatus){
+				case THOST_FTDC_OST_PartTradedQueueing:	//部分成交冻结相应的仓位
+					if(Order.Direction==THOST_FTDC_D_Buy){
+						if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+							if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
+								Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
+							Posi.FrozenSellVolume+=Order.VolumeTotal;
 						}
-						break;
-					default:	// 未成交冻结仓位
-						if(Order.Direction==THOST_FTDC_D_Buy){
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
-								Posi.FrozenSellVolume+=Order.VolumeTotal;
-							}
-							Posi.BuyingVolume+=Order.VolumeTotal;
-						}else{
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
-								Posi.FrozenBuyVolume+=Order.VolumeTotal;
-							}
-							Posi.SellingVolume+=Order.VolumeTotal;
+						Posi.BuyingVolume+=Order.VolumeTotal;
+					}else{
+						if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+							if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+								Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
+							Posi.FrozenBuyVolume+=Order.VolumeTotal;
 						}
-						break;
+						Posi.SellingVolume+=Order.VolumeTotal;
 					}
-				}else{
-					stPosition_t Posi;
-					memset(&Posi,0x00,sizeof(Posi));
-					strcpy(Posi.InstrumentID,Order.InstrumentID);
-					strcpy(Posi.BrokerID,Order.BrokerID);
-					strcpy(Posi.InvestorID,Order.InvestorID);
-					for(auto & vquote : vquotes){
-						if(strcmp(Posi.InstrumentID,vquote.InstrumentID)==0){
-							strcpy(Posi.ExchangeID,vquote.ExchangeID);
-							break;
+					break;
+				default:	//未成交冻结仓位
+					if(Order.Direction==THOST_FTDC_D_Buy){
+						if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+							if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
+								Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
+							Posi.FrozenSellVolume+=Order.VolumeTotal;
 						}
+						Posi.BuyingVolume+=Order.VolumeTotal;
+					}else{
+						if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+							if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+								Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
+							Posi.FrozenBuyVolume+=Order.VolumeTotal;
+						}
+						Posi.SellingVolume+=Order.VolumeTotal;
 					}
-					switch(Order.OrderStatus){
-					case THOST_FTDC_OST_PartTradedQueueing:	//部分成交冻结相应的仓位
-						if(Order.Direction==THOST_FTDC_D_Buy){
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
-								Posi.FrozenSellVolume+=Order.VolumeTotal;
-							}
-							Posi.BuyingVolume+=Order.VolumeTotal;
-						}else{
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
-								Posi.FrozenBuyVolume+=Order.VolumeTotal;
-							}
-							Posi.SellingVolume+=Order.VolumeTotal;
-						}
-						break;
-					default:	// 未成交冻结仓位
-						if(Order.Direction==THOST_FTDC_D_Buy){
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-									Posi.TodayFrozenSellVolume+=Order.VolumeTotal;
-								Posi.FrozenSellVolume+=Order.VolumeTotal;
-							}
-							Posi.BuyingVolume+=Order.VolumeTotal;
-						}else{
-							if(Order.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-								if(Order.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-									Posi.TodayFrozenBuyVolume+=Order.VolumeTotal;
-								Posi.FrozenBuyVolume+=Order.VolumeTotal;
-							}
-							Posi.SellingVolume+=Order.VolumeTotal;
-						}
-						break;
-					}
-					mPositionIndex[Order.InstrumentID] = vPositions.size();
-					vPositions.push_back(Posi);
+					break;
 				}
 			}
 			vOrders.push_back(Order);
@@ -8665,6 +8463,11 @@ void CTradeRsp::HandleRtnOrder(CThostFtdcOrderField& Order)
 
 void CTradeRsp::HandleRtnTrade(CThostFtdcTradeField& Trade)
 {
+	if (WorkingStatus != WORKING_STATUS_WORKING) {
+		vTrades.push_back(Trade);
+		return;
+	}
+
 	char action[10];
 	if (Trade.Direction == THOST_FTDC_D_Buy && Trade.OffsetFlag == THOST_FTDC_OF_Open)
 		strcpy(action, "买开");
@@ -8679,95 +8482,48 @@ void CTradeRsp::HandleRtnTrade(CThostFtdcTradeField& Trade)
 	else
 		strcpy(action, "卖平");
 	status_print( "%s %.2f %s 成交 %d手", Trade.InstrumentID, Trade.Price, action, Trade.Volume);
-	// 	std::vector<CThostFtdcTradeField>::iterator iter;
 	if(strlen(Trade.InstrumentID)!=0){
-// 		for(iter=vFilledOrders.begin();iter!=vFilledOrders.end();iter++){
-// 			if(strcmp(Trade.ExchangeID,iter->ExchangeID)==0 && strcmp(Trade.OrderSysID,iter->OrderSysID)==0){
-// 				return; //重复数据
-// 			}
-// 		}
-// 		if(iter==vFilledOrders.end())
-		vFilledOrders.push_back(Trade);
+		vTrades.push_back(Trade);
 
 		// Update Position Info
-		auto iterIndex = mPositionIndex.find(Trade.InstrumentID);
-		if (iterIndex != mPositionIndex.end()) {
-			auto& Posi = vPositions[iterIndex->second];
-			if (Trade.Direction == THOST_FTDC_D_Buy) {
-				if (Trade.OffsetFlag == THOST_FTDC_OF_Open) {
-					Posi.AvgBuyPrice = (Posi.AvgBuyPrice * Posi.BuyVolume + Trade.Price * Trade.Volume) / (Posi.BuyVolume + Trade.Volume);
-					Posi.BuyVolume += Trade.Volume;
-					Posi.TodayBuyVolume += Trade.Volume;
-				}
-				else {
-					if (Trade.OffsetFlag == THOST_FTDC_OF_CloseToday || (Posi.SellVolume - Posi.TodaySellVolume) == 0)
-						Posi.TodaySellVolume -= Trade.Volume;
-					Posi.SellVolume -= Trade.Volume;
-					if(Posi.SellVolume==0)
-						Posi.AvgSellPrice = 0;
-				}
-				Posi.Volume += Trade.Volume;
+		auto& Posi = GetPosition(Trade.InstrumentID);
+		auto& Instrument = GetInstrument(Trade.InstrumentID);
+
+		if (Trade.Direction == THOST_FTDC_D_Buy) {
+			if (Trade.OffsetFlag == THOST_FTDC_OF_Open) {
+				Posi.AvgBuyPrice = (Posi.AvgBuyPrice * Posi.BuyVolume + Trade.Price * Trade.Volume) / (Posi.BuyVolume + Trade.Volume);
+				Posi.BuyVolume += Trade.Volume;
+				Posi.TodayBuyVolume += Trade.Volume;
 			}
 			else {
-				if (Trade.OffsetFlag == THOST_FTDC_OF_Open) {
-					Posi.AvgSellPrice = (Posi.AvgSellPrice * Posi.SellVolume + Trade.Price * Trade.Volume) / (Posi.SellVolume + Trade.Volume);
-					Posi.SellVolume += Trade.Volume;
-					Posi.TodaySellVolume += Trade.Volume;
-				}
-				else {
-					if (Trade.OffsetFlag == THOST_FTDC_OF_CloseToday || (Posi.BuyVolume - Posi.TodayBuyVolume) == 0)
-						Posi.TodayBuyVolume -= Trade.Volume;
-					Posi.BuyVolume -= Trade.Volume;
-					if (Posi.BuyVolume == 0)
-						Posi.AvgBuyPrice = 0;
-				}
-				Posi.Volume -= Trade.Volume;
+				if (Trade.OffsetFlag == THOST_FTDC_OF_CloseToday || (Posi.SellVolume - Posi.TodaySellVolume) == 0)
+					Posi.TodaySellVolume -= Trade.Volume;
+				Posi.SellVolume -= Trade.Volume;
+				if(Posi.SellVolume==0)
+					Posi.AvgSellPrice = 0;
 			}
-			if (Posi.BuyVolume > Posi.SellVolume)
-				Posi.Price = Posi.AvgBuyPrice;
-			else
-				Posi.Price = Posi.AvgSellPrice;
-		} else {
-			stPosition_t Posi;
-			memset(&Posi,0x00,sizeof(Posi));
-			strcpy(Posi.InstrumentID,Trade.InstrumentID);
-			strcpy(Posi.BrokerID,Trade.BrokerID);
-			strcpy(Posi.InvestorID,Trade.InvestorID);
-			strcpy(Posi.ExchangeID,Trade.ExchangeID);
-			if(Trade.Direction==THOST_FTDC_D_Buy){
-				if(Trade.OffsetFlag==THOST_FTDC_OF_Open){
-					Posi.BuyVolume+=Trade.Volume;
-					Posi.TodayBuyVolume+=Trade.Volume;
-					Posi.AvgBuyPrice = Trade.Price;
-				}else{
-					if(Trade.OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.SellVolume-Posi.TodaySellVolume)==0)
-						Posi.TodaySellVolume-=Trade.Volume;
-					Posi.SellVolume-=Trade.Volume;
-					if (Posi.SellVolume == 0)
-						Posi.AvgSellPrice = 0;
-				}
-				Posi.Volume+=Trade.Volume;
-			}else{
-				if(Trade.OffsetFlag==THOST_FTDC_OF_Open){
-					Posi.SellVolume+=Trade.Volume;
-					Posi.TodaySellVolume+=Trade.Volume;
-					Posi.AvgSellPrice = Trade.Price;
-				}else{
-					if(Trade.OffsetFlag==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
-						Posi.TodayBuyVolume-=Trade.Volume;
-					Posi.BuyVolume-=Trade.Volume;
-					if (Posi.BuyVolume == 0)
-						Posi.AvgBuyPrice = 0;
-				}
-				Posi.Volume-=Trade.Volume;
-			}
-			if (Posi.BuyVolume > Posi.SellVolume)
-				Posi.Price = Posi.AvgBuyPrice;
-			else
-				Posi.Price = Posi.AvgSellPrice;
-			mPositionIndex[Posi.InstrumentID] = vPositions.size();
-			vPositions.push_back(Posi);
+			Posi.Volume += Trade.Volume;
 		}
+		else {
+			if (Trade.OffsetFlag == THOST_FTDC_OF_Open) {
+				Posi.AvgSellPrice = (Posi.AvgSellPrice * Posi.SellVolume + Trade.Price * Trade.Volume) / (Posi.SellVolume + Trade.Volume);
+				Posi.SellVolume += Trade.Volume;
+				Posi.TodaySellVolume += Trade.Volume;
+			}
+			else {
+				if (Trade.OffsetFlag == THOST_FTDC_OF_CloseToday || (Posi.BuyVolume - Posi.TodayBuyVolume) == 0)
+					Posi.TodayBuyVolume -= Trade.Volume;
+				Posi.BuyVolume -= Trade.Volume;
+				if (Posi.BuyVolume == 0)
+					Posi.AvgBuyPrice = 0;
+			}
+			Posi.Volume -= Trade.Volume;
+		}
+		if (Posi.BuyVolume > Posi.SellVolume)
+			Posi.Price = Posi.AvgBuyPrice;
+		else
+			Posi.Price = Posi.AvgSellPrice;
+
 		switch(working_window){
 		case WIN_FILLLIST:
 			filllist_redraw();
@@ -8788,39 +8544,6 @@ void CTradeRsp::HandleErrRtnOrderInsert(CThostFtdcInputOrderField& InputOrder, C
 {
 	if(RspInfo.ErrorID!=0){
 		status_print("报单拒绝:%s",RspInfo.ErrorMsg);
-		std::vector<CThostFtdcOrderField>::iterator iter;
-		for(iter=vOrders.begin();iter!=vOrders.end();iter++){
-			if(iter->FrontID==FrontID && iter->SessionID==SessionID && strcmp(iter->OrderRef,InputOrder.OrderRef)==0){
-				if(iter->OrderStatus==THOST_FTDC_OST_Canceled)	// 如果已经撤消,则不再重复处理
-					break;
-				std::vector<stPosition_t>::iterator iterPosi;
-				for(iterPosi=vPositions.begin();iterPosi!=vPositions.end();iterPosi++){
-					if(strcmp(InputOrder.InvestorID,iterPosi->InvestorID)==0 && strcmp(InputOrder.InstrumentID,iterPosi->InstrumentID)==0)
-						break;
-				}
-				if(iterPosi!=vPositions.end()){  // 本Session中发出的定单肯定会有持仓记录
-					//委托失败后释放冻结仓位
-					if(InputOrder.Direction==THOST_FTDC_D_Buy){
-						if(InputOrder.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(InputOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->SellVolume-iterPosi->TodaySellVolume)==0)
-								iterPosi->TodayFrozenSellVolume-=iter->VolumeTotal;
-							iterPosi->FrozenSellVolume-=iter->VolumeTotal;
-						}
-						iterPosi->BuyingVolume-=iter->VolumeTotal;
-					}else{
-						if(InputOrder.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-							if(InputOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iterPosi->BuyVolume-iterPosi->TodayBuyVolume)==0)
-								iterPosi->TodayFrozenBuyVolume-=iter->VolumeTotal;
-							iterPosi->FrozenBuyVolume-=iter->VolumeTotal;
-						}
-						iterPosi->SellingVolume-=iter->VolumeTotal;
-					}
-				}
-				iter->OrderStatus=THOST_FTDC_OST_Canceled;
-				strcpy(iter->StatusMsg,RspInfo.ErrorMsg);
-				break;
-			}
-		}
 		switch(working_window){
 		case WIN_ORDERLIST:
 			orderlist_redraw();
@@ -8840,21 +8563,6 @@ void CTradeRsp::HandleErrRtnOrderAction(CThostFtdcOrderActionField& OrderAction,
 {
 	if(strlen(OrderAction.InstrumentID)>0){
 		status_print("撤单拒绝:%s",OrderAction.StatusMsg);
-		std::vector<CThostFtdcInputOrderActionField>::iterator iter;
-		for(iter=vCancelingOrders.begin();iter!=vCancelingOrders.end();iter++){
-			if(iter->FrontID==OrderAction.FrontID && iter->SessionID==OrderAction.SessionID && strcmp(iter->OrderRef,OrderAction.OrderRef)==0){
-				vCancelingOrders.erase(iter);	// 移除正在撤消的报单
-				break;
-			}
-		}
-
-// 		std::vector<CThostFtdcOrderField>::iterator iterOrder;
-// 		for(iterOrder=vOrders.begin();iterOrder!=vOrders.end();iterOrder++){
-// 			if(strcmp(iterOrder->InstrumentID,OrderAction.->InstrumentID)==0 && iterOrder->FrontID==OrderAction.->FrontID && iterOrder->SessionID==OrderAction.->SessionID && strcmp(iterOrder->OrderRef,OrderAction.->OrderRef)==0){
-// 				iterOrder->OrderStatus=THOST_FTDC_OST_Canceled;	// 更新报单状态
-// 				break;
-// 			}
-// 		}
 		switch(working_window){
 		case WIN_ORDERLIST:
 			orderlist_redraw();

@@ -582,6 +582,7 @@ int main(int argc,char *argv[])
 		mcolumns[COL_ITEM(i)] = true;
 	}
 	mcolumns[COL_TRADE_VOLUME] = false;
+	mcolumns[COL_SETTLEMENT] = false;
 
 	// Init Order List Columns
 	for(int i = 0;i<sizeof(orderlist_column_items)/sizeof(column_item_t);i++) {
@@ -1637,10 +1638,20 @@ void display_quotation(size_t index)
 	clrtoeol();
 
 	int precision = GetPrecision(vDepthMarketDatas[i].InstrumentID);
-	double PreClosePrice = vDepthMarketDatas[i].PreClosePrice;
-	if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001)
-		PreClosePrice = vDepthMarketDatas[i].PreSettlementPrice;
+	auto &Instrument = GetInstrument(vDepthMarketDatas[i].InstrumentID);
 
+	double PriceBase = vDepthMarketDatas[i].PreClosePrice;
+	if (PriceBase == DBL_MAX || fabs(PriceBase) < 0.000001)
+		PriceBase = vDepthMarketDatas[i].PreSettlementPrice;
+	// 期货和期权的价格基准是昨结算价
+	switch(Instrument.ProductClass){
+		case THOST_FTDC_PC_Futures:
+		case THOST_FTDC_PC_Options:
+			PriceBase = vDepthMarketDatas[i].PreSettlementPrice;
+			break;
+		default:
+			break;
+	}
 
 	for(auto iter=vcolumns.begin();iter!=vcolumns.end();iter++,pos++){
 		if(mcolumns[*iter]==false)
@@ -1666,20 +1677,20 @@ void display_quotation(size_t index)
 			x += column_items[COL_CLOSE].width + 1;
 			break;
 		case COL_PERCENT:
-			if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice==DBL_MAX ||
+			if (PriceBase == DBL_MAX || fabs(PriceBase) < 0.000001 || vDepthMarketDatas[i].LastPrice==DBL_MAX ||
 			    fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
 				mvprintw(y, x, "%*c", column_items[COL_PERCENT].width, '-');
 			else
-				mvprintw(y,x,"%*.1f%%",column_items[COL_PERCENT].width-1,(vDepthMarketDatas[i].LastPrice -
-				                                                          PreClosePrice) / PreClosePrice * 100.0);
+				mvprintw(y,x,"%*.2f%%",column_items[COL_PERCENT].width-1,(vDepthMarketDatas[i].LastPrice -
+				                                                          PriceBase) / PriceBase * 100.0);
 			x += column_items[COL_PERCENT].width + 1;
 			break;
 		case COL_ADVANCE:
-			if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice == DBL_MAX
+			if (PriceBase == DBL_MAX || fabs(PriceBase) < 0.000001 || vDepthMarketDatas[i].LastPrice == DBL_MAX
 			    || fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
 				mvprintw(y,x,"%*c",column_items[COL_ADVANCE].width, '-');
 			else
-				mvprintw(y, x, "%*.*f", column_items[COL_ADVANCE].width - 1,precision,vDepthMarketDatas[i].LastPrice- PreClosePrice);
+				mvprintw(y, x, "%*.*f", column_items[COL_ADVANCE].width - 1,precision,vDepthMarketDatas[i].LastPrice - PriceBase);
 			x += column_items[COL_ADVANCE].width + 1;
 			break;
 		case COL_VOLUME:

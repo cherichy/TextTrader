@@ -3,17 +3,20 @@
 //
 //
 #include "TextTrader.h"
-#include <float.h>
-#include <math.h>
 
 #ifdef _WIN32
-#include <windows.h>
 #undef getch
 #undef ungetch
 #include <conio.h>
+#include <windows.h>
 #endif
 
-#include <algorithm>
+#include <cstring>
+#include <climits>
+#include <cfloat>
+#include <cmath>
+
+#include <map>
 #include <thread>
 #include <mutex>
 #include <functional>
@@ -21,9 +24,9 @@
 #include <chrono>
 #include <iostream>
 #include <atomic>
+
+#include "curses.h"
 #include "INIReader.h"
-#include <string.h>
-#include <climits>
 
 #ifndef _WIN32
 #define strnicmp strncasecmp
@@ -78,8 +81,8 @@ std::string GBKToUtf8(const std::string& str)
     WideCharToMultiByte(CP_UTF8, 0, wstr, -1, cstr, len, NULL, NULL);
     std::string res(cstr);
 
-    if (wstr) delete[] wstr;
-    if (cstr) delete[] cstr;
+    delete[] wstr;
+    delete[] cstr;
 
     return res;
 #elif defined(__linux__) || defined(__GNUC__)
@@ -118,7 +121,7 @@ std::string STR(const std::string& str){
 class semaphore
 {
 public:
-	semaphore(int value = 1) :count(value) {}
+	explicit semaphore(int value = 1) :count(value) {}
 
 	void wait()
 	{
@@ -139,7 +142,7 @@ private:
 	std::mutex mt;
 	std::condition_variable cv;
 };
-void post_task(std::function<void()> task);
+void post_task(const std::function<void()>& task);
 
 int apierrorcount=sizeof(apierrorarray)/sizeof(apierror_t);
 char apierror_none[100]="";
@@ -164,226 +167,240 @@ CMarketRsp* pMarketRsp;
 
 int TradeConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
 int MarketConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
-std::mutex _lock;
-semaphore _sem;
-std::vector< std::function<void()> > _vTasks;
+std::mutex lock;
+semaphore sem;
+std::vector< std::function<void()> > vTasks;
 std::atomic<int> seconds_delayed;
 
 std::vector<CThostFtdcInvestorPositionField> vInvestorPositions;
 
-#define WIN_MAINBOARD	0
-#define WIN_ORDER		1
-#define WIN_FAVORITE	2
-#define WIN_CHART		3
-#define WIN_POSITION	4
-#define WIN_MONEY		5
-#define WIN_ORDERLIST	6
-#define WIN_FILLLIST	7
-#define WIN_MESSAGE		8
-#define WIN_SYSTEM		9
+enum WIN_TYPE {
+	WIN_MAINBOARD =	0,
+	WIN_ORDER =	1,
+	WIN_FAVORITE =	2,
+	WIN_CHART =	3,
+	WIN_POSITION =	4,
+	WIN_MONEY =	5,
+	WIN_ORDERLIST =	6,
+	WIN_FILLLIST =	7,
+	WIN_MESSAGE =	8,
+	WIN_SYSTEM =	9,
+	WIN_COLUMN_SETTINGS	=100,
+	WIN_SYMBOL =101
+};
 
-#define	WIN_COLUMN_SETTINGS	100
-#define WIN_SYMBOL		101
-
-int working_window=WIN_MAINBOARD;
+WIN_TYPE working_window = WIN_MAINBOARD;
 
 typedef struct {
 	char name[30];
 	int width;
 } column_item_t;
 
+enum COL_ITEM {
+	COL_SYMBOL			=	0,		// 合约
+	COL_SYMBOL_NAME		=	1,		// 名称
+	COL_CLOSE			=	2,		// 现价
+	COL_PERCENT			=	3,		// 涨幅
+	COL_VOLUME			=	4,		// 总手
+	COL_TRADE_VOLUME	=	5,		// 现手
+	COL_ADVANCE			=	6,		// 涨跌
+	COL_OPEN			=	7,		// 开盘
+	COL_HIGH			=	8,		// 最高
+	COL_LOW				=	9,		// 最低
+	COL_BID_PRICE		=	10,		// 买价
+	COL_BID_VOLUME		=	11,		// 买量
+	COL_ASK_PRICE		=	12,		// 卖价
+	COL_ASK_VOLUME		=	13,		// 卖量
+	COL_PREV_SETTLEMENT	=	14,		// 昨结
+	COL_SETTLEMENT		=	15,		// 今结
+	COL_PREV_CLOSE		=	16,		// 昨收
+	COL_OPENINT			=	17,		// 今仓
+	COL_PREV_OPENINT	=	18,		// 昨仓
+	COL_AVERAGE_PRICE	=	19,		// 均价
+	COL_HIGH_LIMIT		=	20,		// 涨停价
+	COL_LOW_LIMIT		=	21,		// 跌停价
+	COL_DATE			=	22,		// 日期
+	COL_TIME			=	23,		// 时间
+	COL_TRADE_DAY		=	24,		// 交易日
+	COL_EXCHANGE		=	25,		// 交易所
+};
+
 column_item_t column_items[]={
-#define COL_SYMBOL			0		// 合约
 	{"合约",		14},
-#define COL_SYMBOL_NAME		1		// 名称
 	{"名称",		16},
-#define COL_CLOSE			2		// 现价
 	{"现价",		10},
-#define COL_PERCENT			3		// 涨幅
 	{"涨幅",		10},
-#define COL_VOLUME			4		// 总手
 	{"总手",		10},
-#define COL_TRADE_VOLUME	5		// 现手
 	{"现手",		10},
-#define COL_ADVANCE			6		// 涨跌
 	{"涨跌",		10},
-#define COL_OPEN			7		// 开盘
 	{"开盘",		10},
-#define COL_HIGH			8		// 最高
 	{"最高",		10},
-#define COL_LOW				9		// 最低
 	{"最低",		10},
-#define COL_BID_PRICE		10		// 买价
 	{"买价",		10},
-#define COL_BID_VOLUME		11		// 买量
 	{"买量",		10},
-#define COL_ASK_PRICE		12		// 卖价
 	{"卖价",		10},
-#define COL_ASK_VOLUME		13		// 卖量
 	{"卖量",		10},
-#define COL_PREV_SETTLEMENT	14		// 昨结
 	{"昨结",		10},
-#define COL_SETTLEMENT		15		// 今结
 	{"今结",		10},
-#define COL_PREV_CLOSE		16		// 昨收
 	{"昨收",		10},
-#define COL_OPENINT			17		// 今仓
 	{"今仓",		10},
-#define COL_PREV_OPENINT	18		// 昨仓
 	{"昨仓",		10},
-#define COL_AVERAGE_PRICE	19		// 均价
 	{"均价",		10},
-#define COL_HIGH_LIMIT		20		// 涨停价
 	{"涨停",		10},
-#define COL_LOW_LIMIT		21		// 跌停价
 	{"跌停",		10},
-#define COL_DATE			22		// 日期
 	{"日期",		10},
-#define COL_TIME			23		// 时间
 	{"时间",		10},
-#define COL_TRADE_DAY		24		// 交易日
 	{"交易日",		10},
-#define COL_EXCHANGE		25		// 交易所
 	{"交易所",		10}
 };
-std::vector<int> vcolumns;	// columns in order
-std::map<int,bool> mcolumns;	// column select status
+std::vector<COL_ITEM> vcolumns;	// columns in order
+std::map<COL_ITEM,bool> mcolumns;	// column select status
+
+enum ORDER_ITEM{
+	ORDERLIST_COL_SYMBOL		    = 0,		// 合约
+	ORDERLIST_COL_SYMBOL_NAME	    = 1,		// 名称
+	ORDERLIST_COL_DIRECTION		    = 2,		// 买卖
+	ORDERLIST_COL_VOLUME		    = 3,		// 数量
+	ORDERLIST_COL_VOLUME_FILLED	    = 4,		// 成交数量
+	ORDERLIST_COL_PRICE			    = 5,		// 报价
+	ORDERLIST_COL_AVG_PRICE		    = 6,		// 成交均价
+	ORDERLIST_COL_APPLY_TIME	    = 7,		// 委托时间
+	ORDERLIST_COL_UPDATE_TIME	    = 8,		// 更新时间
+	ORDERLIST_COL_STATUS		    = 9,		// 报单状态
+	ORDERLIST_COL_SH_FLAG			= 10,		// 投保
+	ORDERLIST_COL_ORDERID			= 11,		// 报单号
+	ORDERLIST_COL_EXCHANGE_NAME		= 12,		// 交易所名称
+	ORDERLIST_COL_DESC				= 13,		// 备注
+	ORDERLIST_COL_ACC_ID			= 14		// 账号
+};
 
 column_item_t orderlist_column_items[]={
-#define ORDERLIST_COL_SYMBOL			0		// 合约
 	{"合约",		14},
-#define ORDERLIST_COL_SYMBOL_NAME		1		// 名称
 	{"名称",		16},
-#define ORDERLIST_COL_DIRECTION			2		// 买卖
 	{"买卖",		6},
-#define ORDERLIST_COL_VOLUME			3		// 数量
 	{"数量",		5},
-#define ORDERLIST_COL_VOLUME_FILLED		4		// 成交数量
 	{"成交",		5},
-#define ORDERLIST_COL_PRICE				5		// 报价
 	{"报价",		10},
-#define ORDERLIST_COL_AVG_PRICE			6		// 成交均价
 	{"成交均价",	10},
-#define ORDERLIST_COL_APPLY_TIME		7		// 委托时间
 	{"委托时间",	10},
-#define ORDERLIST_COL_UPDATE_TIME		8		// 更新时间
 	{"更新时间",	10},
-#define ORDERLIST_COL_STATUS			9		// 报单状态
 	{"报单状态",	8},
-#define ORDERLIST_COL_SH_FLAG			10		// 投保
 	{"投保",		4},
-#define ORDERLIST_COL_ORDERID			11		// 报单号
 	{"报单号",		8},
-#define ORDERLIST_COL_EXCHANGE_NAME		12		// 交易所名称
 	{"交易所",		10},
-#define ORDERLIST_COL_DESC				13		// 备注
 	{"备注",		30},
-#define ORDERLIST_COL_ACC_ID			14		// 账号
 	{"账号",		10}
 };
-std::vector<int> vorderlist_columns;	// order list columns in order
-std::map<int,bool> morderlist_columns;	// order list column select status
+std::vector<ORDER_ITEM> vorderlist_columns;	// order list columns in order
+std::map<ORDER_ITEM,bool> morderlist_columns;	// order list column select status
+
+enum FILL_ITEM{
+	FILLLIST_COL_SYMBOL			=	0,		// 合约
+	FILLLIST_COL_SYMBOL_NAME	=	1,		// 名称
+	FILLLIST_COL_DIRECTION		=	2,		// 买卖
+	FILLLIST_COL_VOLUME			=	3,		// 数量
+	FILLLIST_COL_PRICE			=	4,		// 价格
+	FILLLIST_COL_TIME			=	5,		// 时间
+	FILLLIST_COL_SH_FLAG		=	6,		// 投保
+	FILLLIST_COL_ORDERID		=	7,		// 报单号
+	FILLLIST_COL_FILLID			=	8,		// 成交号
+	FILLLIST_COL_EXCHANGE_NAME	=	9,		// 交易所名称
+	FILLLIST_COL_ACC_ID			=   10		// 账号
+};
 
 column_item_t filllist_column_items[]={
-#define FILLLIST_COL_SYMBOL				0		// 合约
 	{"合约",		10},
-#define FILLLIST_COL_SYMBOL_NAME		1		// 名称
 	{"名称",		16},
-#define FILLLIST_COL_DIRECTION			2		// 买卖
 	{"买卖",		6},
-#define FILLLIST_COL_VOLUME				3		// 数量
 	{"数量",		5},
-#define FILLLIST_COL_PRICE				4		// 价格
 	{"价格",		10},
-#define FILLLIST_COL_TIME				5		// 时间
 	{"时间",		10},
-#define FILLLIST_COL_SH_FLAG			6		// 投保
 	{"投保",		4},
-#define FILLLIST_COL_ORDERID			7		// 报单号
 	{"报单号",		8},
-#define FILLLIST_COL_FILLID				8		// 成交号
 	{"成交号",		8},
-#define FILLLIST_COL_EXCHANGE_NAME		9		// 交易所名称
 	{"交易所",		10},
-#define FILLLIST_COL_ACC_ID				10		// 账号
 	{"账号",		10}
 };
-std::vector<int> vfilllist_columns;	// fill list columns in order
-std::map<int,bool> mfilllist_columns;	// fill list column select status
+std::vector<FILL_ITEM> vfilllist_columns;	// fill list columns in order
+std::map<FILL_ITEM,bool> mfilllist_columns;	// fill list column select status
 
 
+enum POSITION_ITEM{
+	POSITIONLIST_COL_SYMBOL				= 0,		// 合约
+	POSITIONLIST_COL_SYMBOL_NAME		= 1,		// 名称
+	POSITIONLIST_COL_VOLUME				= 2,		// 数量（冻结）
+	POSITIONLIST_COL_AVG_PRICE			= 3,		// 均价
+	POSITIONLIST_COL_PROFITLOSS			= 4,		// 盈亏（金额(点数/百分比)）
+	POSITIONLIST_COL_MARGIN				= 5,		// 占用保证金
+	POSITIONLIST_COL_AMOUNT				= 6,		// 持仓金额
+	POSITIONLIST_COL_BUY_VOLUME			= 7,		// 买量（冻结）
+	POSITIONLIST_COL_BUY_PRICE			= 8,		// 买均价
+	POSITIONLIST_COL_BUY_PROFITLOSS		= 9,		// 买盈亏
+	POSITIONLIST_COL_BUY_TODAY			= 10,		// 今买
+	POSITIONLIST_COL_SELL_VOLUME		= 11,		// 卖量（冻结）
+	POSITIONLIST_COL_SELL_PRICE			= 12,		// 卖均价
+	POSITIONLIST_COL_SELL_PROFITLOSS	= 13,		// 卖盈亏
+	POSITIONLIST_COL_SELL_TODAY			= 14,		// 今卖
+	POSITIONLIST_COL_EXCHANGE_NAME		= 15,		// 交易所名称
+	POSITIONLIST_COL_ACC_ID				= 16		// 账号
+};
 column_item_t positionlist_column_items[]={
-#define POSITIONLIST_COL_SYMBOL				0		// 合约
 	{"合约",		10},
-#define POSITIONLIST_COL_SYMBOL_NAME		1		// 名称
 	{"名称",		10},
-#define POSITIONLIST_COL_VOLUME				2		// 数量（冻结）
 	{"数量",		10},
-#define POSITIONLIST_COL_AVG_PRICE			3		// 均价
 	{"均价",		10},
-#define POSITIONLIST_COL_PROFITLOSS			4		// 盈亏（金额(点数/百分比)）
 	{"盈亏",		10},
-#define POSITIONLIST_COL_MARGIN				5		// 占用保证金
 	{"占用保证金",	10},
-#define POSITIONLIST_COL_AMOUNT				6		// 持仓金额
 	{"持仓金额",	10},
-#define POSITIONLIST_COL_BUY_VOLUME			7		// 买量（冻结）
 	{"买量",		10},
-#define POSITIONLIST_COL_BUY_PRICE			8		// 买均价
 	{"买均价",		10},
-#define POSITIONLIST_COL_BUY_PROFITLOSS		9		// 买盈亏
 	{"买盈亏",		10},
-#define POSITIONLIST_COL_BUY_TODAY			10		// 今买
 	{"今买",		10},
-#define POSITIONLIST_COL_SELL_VOLUME		11		// 卖量（冻结）
 	{"卖量",		10},
-#define POSITIONLIST_COL_SELL_PRICE			12		// 卖均价
 	{"卖均价",		10},
-#define POSITIONLIST_COL_SELL_PROFITLOSS	13		// 卖盈亏
 	{"卖盈亏",		10},
-#define POSITIONLIST_COL_SELL_TODAY			14		// 今卖
 	{"今卖",		10},
-#define POSITIONLIST_COL_EXCHANGE_NAME		15		// 交易所名称
 	{"交易所",		10},
-#define POSITIONLIST_COL_ACC_ID				16		// 账号
 	{"账号",		10}
 };
-std::vector<int> vpositionlist_columns;	// position list columns in order
-std::map<int,bool> mpositionlist_columns;	// position list column select status
+std::vector<POSITION_ITEM> vpositionlist_columns;	// position list columns in order
+std::map<POSITION_ITEM,bool> mpositionlist_columns;	// position list column select status
 
 
+enum ACCOUNT_ITEM{
+	ACCLIST_COL_ACC_ID				= 0,		// 账号
+	ACCLIST_COL_ACC_NAME			= 1,		// 名称
+	ACCLIST_COL_PRE_BALANCE			= 2,		// 上日结存
+	ACCLIST_COL_MONEY_IN			= 3,		// 入金
+	ACCLIST_COL_MONEY_OUT			= 4,		// 出金
+	ACCLIST_COL_FROZEN_MARGIN		= 5,		// 冻结保证金
+	ACCLIST_COL_MONEY_FROZEN		= 6,		// 冻结资金
+	ACCLIST_COL_FEE_FROZEN			= 7,		// 冻结手续费
+	ACCLIST_COL_MARGIN				= 8,		// 占用保证金
+	ACCLIST_COL_FEE					= 9,		// 手续费
+	ACCLIST_COL_CLOSE_PROFIT_LOSS	= 10,		// 平仓盈亏
+	ACCLIST_COL_FLOAT_PROFIT_LOSS	= 11,		// 持仓盈亏
+	ACCLIST_COL_BALANCE_AVAILABLE	= 12,		// 可用资金
+	ACCLIST_COL_BROKER_ID			= 13		// 经纪代码
+};
 column_item_t acclist_column_items[]={
-#define ACCLIST_COL_ACC_ID				0		// 账号
 	{"账号",		10},
-#define ACCLIST_COL_ACC_NAME			1		// 名称
 	{"名称",		10},
-#define ACCLIST_COL_PRE_BALANCE			2		// 上日结存
 	{"上日结存",	10},
-#define ACCLIST_COL_MONEY_IN			3		// 入金
 	{"入金",		10},
-#define ACCLIST_COL_MONEY_OUT			4		// 出金
 	{"出金",		10},
-#define ACCLIST_COL_FROZEN_MARGIN		5		// 冻结保证金
 	{"冻结保证金",	10},
-#define ACCLIST_COL_MONEY_FROZEN		6		// 冻结资金
 	{"冻结资金",	10},
-#define ACCLIST_COL_FEE_FROZEN			7		// 冻结手续费
 	{"冻结手续费",	10},
-#define ACCLIST_COL_MARGIN				8		// 占用保证金
 	{"占用保证金",	10},
-#define ACCLIST_COL_FEE					9		// 手续费
 	{"手续费",		10},
-#define ACCLIST_COL_CLOSE_PROFIT_LOSS	10		// 平仓盈亏
 	{"平仓盈亏",	10},
-#define ACCLIST_COL_FLOAT_PROFIT_LOSS	11		// 持仓盈亏
 	{"持仓盈亏",	10},
-#define ACCLIST_COL_BALANCE_AVAILABLE	12		// 可用资金
 	{"可用资金",	10},
-#define ACCLIST_COL_BROKER_ID			13		// 经纪代码
 	{"经纪代码",	10}
 };
-std::vector<int> vacclist_columns;	// position list columns in order
-std::map<int,bool> macclist_columns;	// position list column select status
+std::vector<ACCOUNT_ITEM> vacclist_columns;	// position list columns in order
+std::map<ACCOUNT_ITEM,bool> macclist_columns;	// position list column select status
 
 // Mainboard Curses
 int curr_line=0,curr_col=1,max_lines,max_cols=7;
@@ -489,7 +506,7 @@ int main(int argc,char *argv[])
 	char user_trade_flow_path[256],user_market_flow_path[256];
 
 	// get user/password from terminal
-	if (user == "") {
+	if (user.empty()) {
 		std::cout << "UserID:";
 		std::cin >> user;
 		std::cout << "Password:";
@@ -497,9 +514,9 @@ int main(int argc,char *argv[])
 	}
 
 	// If no special market password then use trade's.
-	if (market_user == "")
+	if (market_user.empty())
 		market_user = user;
-	if (market_password == "")
+	if (market_password.empty())
 		market_password = password;
 
 	// Market	
@@ -511,8 +528,8 @@ int main(int argc,char *argv[])
 	strcpy(pMarketRsp->passwd, market_password.c_str());
 	pMarketRsp->m_pMarketReq=CThostFtdcMdApi::CreateFtdcMdApi(user_market_flow_path);
 	pMarketRsp->m_pMarketReq->RegisterSpi(pMarketRsp);
-	if(market_name_server.length()){
-		CThostFtdcFensUserInfoField FensUserInfo;
+	if(!market_name_server.empty()){
+		CThostFtdcFensUserInfoField FensUserInfo{};
 		memset(&FensUserInfo,0x00,sizeof(FensUserInfo));
 		strncpy(FensUserInfo.BrokerID,broker.c_str(),sizeof(FensUserInfo.BrokerID)-1);
 		strncpy(FensUserInfo.UserID,broker.c_str(),sizeof(FensUserInfo.UserID)-1);
@@ -549,8 +566,8 @@ int main(int argc,char *argv[])
 	sprintf(user_trade_flow_path,"%s_%s_trade", broker.c_str(), user.c_str());
 	pTradeRsp->m_pTradeReq=CThostFtdcTraderApi::CreateFtdcTraderApi(user_trade_flow_path);
 	pTradeRsp->m_pTradeReq->RegisterSpi(pTradeRsp);
-	if(trade_name_server.length()){
-		CThostFtdcFensUserInfoField FensUserInfo;
+	if(!trade_name_server.empty()){
+		CThostFtdcFensUserInfoField FensUserInfo{};
 		memset(&FensUserInfo,0x00,sizeof(FensUserInfo));
 		strncpy(FensUserInfo.BrokerID,broker.c_str(),sizeof(FensUserInfo.BrokerID)-1);
 		strncpy(FensUserInfo.UserID,user.c_str(),sizeof(FensUserInfo.UserID)-1);
@@ -566,111 +583,137 @@ int main(int argc,char *argv[])
 
 
 	// Init Columns
-	mcolumns[COL_SYMBOL]=true;vcolumns.push_back(COL_SYMBOL);
-	mcolumns[COL_SYMBOL_NAME]=true;vcolumns.push_back(COL_SYMBOL_NAME);
-	mcolumns[COL_CLOSE]=true;vcolumns.push_back(COL_CLOSE);
-	mcolumns[COL_PERCENT]=true;vcolumns.push_back(COL_PERCENT);
-	mcolumns[COL_VOLUME]=true;vcolumns.push_back(COL_VOLUME);
-	mcolumns[COL_TRADE_VOLUME]=true;vcolumns.push_back(COL_TRADE_VOLUME);
-	mcolumns[COL_BID_PRICE]=true;vcolumns.push_back(COL_BID_PRICE);
-	mcolumns[COL_BID_VOLUME]=true;vcolumns.push_back(COL_BID_VOLUME);
-	mcolumns[COL_ASK_PRICE]=true;vcolumns.push_back(COL_ASK_PRICE);
-	mcolumns[COL_ASK_VOLUME]=true;vcolumns.push_back(COL_ASK_VOLUME);
-	mcolumns[COL_HIGH_LIMIT] = true; vcolumns.push_back(COL_HIGH_LIMIT);
-	mcolumns[COL_LOW_LIMIT] = true; vcolumns.push_back(COL_LOW_LIMIT);
-	mcolumns[COL_PREV_SETTLEMENT]=true;vcolumns.push_back(COL_PREV_SETTLEMENT);
-	mcolumns[COL_ADVANCE]=true;vcolumns.push_back(COL_ADVANCE);
-	mcolumns[COL_OPEN]=true;vcolumns.push_back(COL_OPEN);
-	mcolumns[COL_HIGH]=true;vcolumns.push_back(COL_HIGH);
-	mcolumns[COL_LOW]=true;vcolumns.push_back(COL_LOW);
-	mcolumns[COL_AVERAGE_PRICE]=true;vcolumns.push_back(COL_AVERAGE_PRICE);
-	mcolumns[COL_PREV_CLOSE]=true;vcolumns.push_back(COL_PREV_CLOSE);
-	mcolumns[COL_OPENINT]=true;vcolumns.push_back(COL_OPENINT);
-	mcolumns[COL_PREV_OPENINT]=true;vcolumns.push_back(COL_PREV_OPENINT);
-	mcolumns[COL_SETTLEMENT]=true;vcolumns.push_back(COL_SETTLEMENT);
-	mcolumns[COL_DATE] = true; vcolumns.push_back(COL_DATE);
-	mcolumns[COL_TIME] = true; vcolumns.push_back(COL_TIME);
-	mcolumns[COL_EXCHANGE] = true; vcolumns.push_back(COL_EXCHANGE);
-	mcolumns[COL_TRADE_DAY] = true; vcolumns.push_back(COL_TRADE_DAY);
+	vcolumns = {
+        COL_SYMBOL,
+        COL_SYMBOL_NAME,
+        COL_CLOSE,
+        COL_PERCENT,
+        COL_VOLUME,
+        COL_TRADE_VOLUME,
+        COL_BID_PRICE,
+        COL_BID_VOLUME,
+        COL_ASK_PRICE,
+        COL_ASK_VOLUME,
+        COL_HIGH_LIMIT,
+        COL_LOW_LIMIT,
+        COL_PREV_SETTLEMENT,
+        COL_ADVANCE,
+        COL_OPEN,
+        COL_HIGH,
+        COL_LOW,
+        COL_AVERAGE_PRICE,
+        COL_PREV_CLOSE,
+        COL_OPENINT,
+        COL_PREV_OPENINT,
+        COL_SETTLEMENT,
+        COL_DATE,
+        COL_TIME,
+        COL_EXCHANGE,
+        COL_TRADE_DAY
+    };
+	for(auto col: vcolumns){
+		mcolumns[col] = true;
+	}
+
 
 	// Init Order List Columns
-	morderlist_columns[ORDERLIST_COL_ACC_ID]=true;vorderlist_columns.push_back(ORDERLIST_COL_ACC_ID);
-	morderlist_columns[ORDERLIST_COL_SYMBOL]=true;vorderlist_columns.push_back(ORDERLIST_COL_SYMBOL);
-	morderlist_columns[ORDERLIST_COL_SYMBOL_NAME]=true;vorderlist_columns.push_back(ORDERLIST_COL_SYMBOL_NAME);
-	morderlist_columns[ORDERLIST_COL_DIRECTION]=true;vorderlist_columns.push_back(ORDERLIST_COL_DIRECTION);
-	morderlist_columns[ORDERLIST_COL_VOLUME]=true;vorderlist_columns.push_back(ORDERLIST_COL_VOLUME);
-	morderlist_columns[ORDERLIST_COL_VOLUME_FILLED]=true;vorderlist_columns.push_back(ORDERLIST_COL_VOLUME_FILLED);
-	morderlist_columns[ORDERLIST_COL_PRICE]=true;vorderlist_columns.push_back(ORDERLIST_COL_PRICE);
-	morderlist_columns[ORDERLIST_COL_AVG_PRICE]=true;vorderlist_columns.push_back(ORDERLIST_COL_AVG_PRICE);
-	morderlist_columns[ORDERLIST_COL_APPLY_TIME]=true;vorderlist_columns.push_back(ORDERLIST_COL_APPLY_TIME);
-	morderlist_columns[ORDERLIST_COL_UPDATE_TIME]=true;vorderlist_columns.push_back(ORDERLIST_COL_UPDATE_TIME);
-	morderlist_columns[ORDERLIST_COL_STATUS]=true;vorderlist_columns.push_back(ORDERLIST_COL_STATUS);
-	morderlist_columns[ORDERLIST_COL_SH_FLAG]=true;vorderlist_columns.push_back(ORDERLIST_COL_SH_FLAG);
-	morderlist_columns[ORDERLIST_COL_ORDERID]=true;vorderlist_columns.push_back(ORDERLIST_COL_ORDERID);
-	morderlist_columns[ORDERLIST_COL_EXCHANGE_NAME]=true;vorderlist_columns.push_back(ORDERLIST_COL_EXCHANGE_NAME);
-	morderlist_columns[ORDERLIST_COL_DESC]=true;vorderlist_columns.push_back(ORDERLIST_COL_DESC);
+	vorderlist_columns={
+		ORDERLIST_COL_ACC_ID,
+		ORDERLIST_COL_SYMBOL,
+		ORDERLIST_COL_SYMBOL_NAME,
+		ORDERLIST_COL_DIRECTION,
+		ORDERLIST_COL_VOLUME,
+		ORDERLIST_COL_VOLUME_FILLED,
+		ORDERLIST_COL_PRICE,
+		ORDERLIST_COL_AVG_PRICE,
+		ORDERLIST_COL_APPLY_TIME,
+		ORDERLIST_COL_UPDATE_TIME,
+		ORDERLIST_COL_STATUS,
+		ORDERLIST_COL_SH_FLAG,
+		ORDERLIST_COL_ORDERID,
+		ORDERLIST_COL_EXCHANGE_NAME,
+		ORDERLIST_COL_DESC
+	};
+	for(auto col:vorderlist_columns){
+		morderlist_columns[col] = true;
+	}
 	
 	// Init Fill List Columns
-	mfilllist_columns[FILLLIST_COL_ACC_ID]=true;vfilllist_columns.push_back(FILLLIST_COL_ACC_ID);
-	mfilllist_columns[FILLLIST_COL_SYMBOL]=true;vfilllist_columns.push_back(FILLLIST_COL_SYMBOL);
-	mfilllist_columns[FILLLIST_COL_SYMBOL_NAME]=true;vfilllist_columns.push_back(FILLLIST_COL_SYMBOL_NAME);
-	mfilllist_columns[FILLLIST_COL_DIRECTION]=true;vfilllist_columns.push_back(FILLLIST_COL_DIRECTION);
-	mfilllist_columns[FILLLIST_COL_VOLUME]=true;vfilllist_columns.push_back(FILLLIST_COL_VOLUME);
-	mfilllist_columns[FILLLIST_COL_PRICE]=true;vfilllist_columns.push_back(FILLLIST_COL_PRICE);
-	mfilllist_columns[FILLLIST_COL_TIME]=true;vfilllist_columns.push_back(FILLLIST_COL_TIME);
-	mfilllist_columns[FILLLIST_COL_SH_FLAG]=true;vfilllist_columns.push_back(FILLLIST_COL_SH_FLAG);
-	mfilllist_columns[FILLLIST_COL_ORDERID]=true;vfilllist_columns.push_back(FILLLIST_COL_ORDERID);
-	mfilllist_columns[FILLLIST_COL_FILLID]=true;vfilllist_columns.push_back(FILLLIST_COL_FILLID);
-	mfilllist_columns[FILLLIST_COL_EXCHANGE_NAME]=true;vfilllist_columns.push_back(FILLLIST_COL_EXCHANGE_NAME);
-	
+	vfilllist_columns={
+		FILLLIST_COL_ACC_ID,
+		FILLLIST_COL_SYMBOL,
+		FILLLIST_COL_SYMBOL_NAME,
+		FILLLIST_COL_DIRECTION,
+		FILLLIST_COL_VOLUME,
+		FILLLIST_COL_PRICE,
+		FILLLIST_COL_TIME,
+		FILLLIST_COL_SH_FLAG,
+		FILLLIST_COL_ORDERID,
+		FILLLIST_COL_FILLID,
+		FILLLIST_COL_EXCHANGE_NAME
+	};
+	for(auto col: vfilllist_columns){
+		mfilllist_columns[col] = true;
+	}
+
 	// Init Position List Columns
-	mpositionlist_columns[POSITIONLIST_COL_ACC_ID]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_ACC_ID);
-	mpositionlist_columns[POSITIONLIST_COL_SYMBOL]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SYMBOL);
-	mpositionlist_columns[POSITIONLIST_COL_SYMBOL_NAME]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SYMBOL_NAME);
-	mpositionlist_columns[POSITIONLIST_COL_VOLUME]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_VOLUME);
-	mpositionlist_columns[POSITIONLIST_COL_AVG_PRICE]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_AVG_PRICE);
-	mpositionlist_columns[POSITIONLIST_COL_PROFITLOSS]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_PROFITLOSS);
-	mpositionlist_columns[POSITIONLIST_COL_MARGIN]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_MARGIN);
-	mpositionlist_columns[POSITIONLIST_COL_AMOUNT]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_AMOUNT);
-	mpositionlist_columns[POSITIONLIST_COL_BUY_VOLUME]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_BUY_VOLUME);
-	mpositionlist_columns[POSITIONLIST_COL_BUY_PRICE]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_BUY_PRICE);
-	mpositionlist_columns[POSITIONLIST_COL_BUY_PROFITLOSS]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_BUY_PROFITLOSS);
-	mpositionlist_columns[POSITIONLIST_COL_BUY_TODAY]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_BUY_TODAY);
-	mpositionlist_columns[POSITIONLIST_COL_SELL_VOLUME]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SELL_VOLUME);
-	mpositionlist_columns[POSITIONLIST_COL_SELL_PRICE]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SELL_PRICE);
-	mpositionlist_columns[POSITIONLIST_COL_SELL_PROFITLOSS]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SELL_PROFITLOSS);
-	mpositionlist_columns[POSITIONLIST_COL_SELL_TODAY]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_SELL_TODAY);
-	mpositionlist_columns[POSITIONLIST_COL_EXCHANGE_NAME]=true;vpositionlist_columns.push_back(POSITIONLIST_COL_EXCHANGE_NAME);
-	
+	vpositionlist_columns = {
+		POSITIONLIST_COL_ACC_ID,
+		POSITIONLIST_COL_SYMBOL,
+		POSITIONLIST_COL_SYMBOL_NAME,
+		POSITIONLIST_COL_VOLUME,
+		POSITIONLIST_COL_AVG_PRICE,
+		POSITIONLIST_COL_PROFITLOSS,
+		POSITIONLIST_COL_MARGIN,
+		POSITIONLIST_COL_AMOUNT,
+		POSITIONLIST_COL_BUY_VOLUME,
+		POSITIONLIST_COL_BUY_PRICE,
+		POSITIONLIST_COL_BUY_PROFITLOSS,
+		POSITIONLIST_COL_BUY_TODAY,
+		POSITIONLIST_COL_SELL_VOLUME,
+		POSITIONLIST_COL_SELL_PRICE,
+		POSITIONLIST_COL_SELL_PROFITLOSS,
+		POSITIONLIST_COL_SELL_TODAY,
+		POSITIONLIST_COL_EXCHANGE_NAME
+	};
+	for(auto col:vpositionlist_columns){
+		mpositionlist_columns[col]=true;
+	}
+
 	// Init Account List Columns
-	macclist_columns[ACCLIST_COL_ACC_ID]=true;vacclist_columns.push_back(ACCLIST_COL_ACC_ID);
-	macclist_columns[ACCLIST_COL_ACC_NAME]=true;vacclist_columns.push_back(ACCLIST_COL_ACC_NAME);
-	macclist_columns[ACCLIST_COL_PRE_BALANCE]=true;vacclist_columns.push_back(ACCLIST_COL_PRE_BALANCE);
-	macclist_columns[ACCLIST_COL_MONEY_IN]=true;vacclist_columns.push_back(ACCLIST_COL_MONEY_IN);
-	macclist_columns[ACCLIST_COL_MONEY_OUT]=true;vacclist_columns.push_back(ACCLIST_COL_MONEY_OUT);
-	macclist_columns[ACCLIST_COL_FROZEN_MARGIN]=true;vacclist_columns.push_back(ACCLIST_COL_FROZEN_MARGIN);
-	macclist_columns[ACCLIST_COL_MONEY_FROZEN]=true;vacclist_columns.push_back(ACCLIST_COL_MONEY_FROZEN);
-	macclist_columns[ACCLIST_COL_FEE_FROZEN]=true;vacclist_columns.push_back(ACCLIST_COL_FEE_FROZEN);
-	macclist_columns[ACCLIST_COL_MARGIN]=true;vacclist_columns.push_back(ACCLIST_COL_MARGIN);
-	macclist_columns[ACCLIST_COL_FEE]=true;vacclist_columns.push_back(ACCLIST_COL_FEE);
-	macclist_columns[ACCLIST_COL_CLOSE_PROFIT_LOSS]=true;vacclist_columns.push_back(ACCLIST_COL_CLOSE_PROFIT_LOSS);
-	macclist_columns[ACCLIST_COL_FLOAT_PROFIT_LOSS]=true;vacclist_columns.push_back(ACCLIST_COL_FLOAT_PROFIT_LOSS);
-	macclist_columns[ACCLIST_COL_BALANCE_AVAILABLE]=true;vacclist_columns.push_back(ACCLIST_COL_BALANCE_AVAILABLE);
-	macclist_columns[ACCLIST_COL_BROKER_ID]=true;vacclist_columns.push_back(ACCLIST_COL_BROKER_ID);
+	vacclist_columns = {
+		ACCLIST_COL_ACC_ID,
+		ACCLIST_COL_ACC_NAME,
+		ACCLIST_COL_PRE_BALANCE,
+		ACCLIST_COL_MONEY_IN,
+		ACCLIST_COL_MONEY_OUT,
+		ACCLIST_COL_FROZEN_MARGIN,
+		ACCLIST_COL_MONEY_FROZEN,
+		ACCLIST_COL_FEE_FROZEN,
+		ACCLIST_COL_MARGIN,
+		ACCLIST_COL_FEE,
+		ACCLIST_COL_CLOSE_PROFIT_LOSS,
+		ACCLIST_COL_FLOAT_PROFIT_LOSS,
+		ACCLIST_COL_BALANCE_AVAILABLE,
+		ACCLIST_COL_BROKER_ID
+	};
+	for(auto col:vacclist_columns){
+		macclist_columns[col] = true;
+	}
 
 	std::thread workthread(&work_thread);
 	std::thread timerthread(&time_thread);
 
 	// Idle
-	while(1){
+	while(true){
 #ifdef _WIN32
-		ch=getch();
+		ch=_getch();
 #else
 		ch=getchar();
 #endif
 		if (ch == 224) {
 #ifdef _WIN32
-			ch = getch();
+			ch = _getch();
 #else
 			ch = getchar();
 #endif
@@ -726,7 +769,7 @@ int main(int argc,char *argv[])
 			}
 		}else if (ch == 0) {
 #ifdef _WIN32
-			ch = getch();
+			ch = _getch();
 #else
 			ch = getchar();
 #endif
@@ -800,12 +843,12 @@ int main(int argc,char *argv[])
 	return 0;
 }
 
-void post_task(std::function<void()> task)
+void post_task(const std::function<void()>& task)
 {
-	_lock.lock();
-	_vTasks.push_back(task);
-	_lock.unlock();
-	_sem.signal();
+	lock.lock();
+	vTasks.push_back(task);
+	lock.unlock();
+	sem.signal();
 }
 
 double GetProfitLoss(const char* InstrumentID)
@@ -920,7 +963,7 @@ void HandleQueryAccount()
 	if (TradeConnectionStatus != CONNECTION_STATUS_LOGINOK)
 		return;
 
-	CThostFtdcQryTradingAccountField Req;
+	CThostFtdcQryTradingAccountField Req{};
 
 	memset(&Req, 0x00, sizeof(Req));
 	strcpy(Req.BrokerID, pTradeRsp->broker);
@@ -973,7 +1016,7 @@ void HandleTickTimeout()
 
 int goto_symbol_window_from_mainboard()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -989,7 +1032,7 @@ int goto_symbol_window_from_mainboard()
 }
 int goto_order_window_from_mainboard()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1085,7 +1128,7 @@ int move_backward_half_page()
 }
 int goto_page_top()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1100,7 +1143,7 @@ int goto_page_top()
 }
 int goto_page_bottom()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1122,7 +1165,7 @@ int goto_page_bottom()
 }
 int goto_page_middle()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1145,7 +1188,7 @@ int goto_page_middle()
 
 int scroll_forward_1_line()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1177,7 +1220,7 @@ int scroll_forward_1_line()
 }
 int scroll_backward_1_line()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1208,7 +1251,7 @@ int scroll_backward_1_line()
 
 int move_forward_1_line()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1242,7 +1285,7 @@ int scroll_left_1_column()
 		return 0;
 	while(mcolumns[vcolumns[--curr_col_pos]]==false); //	取消所在列的反白显示
 	display_title();
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	for(size_t i=curr_pos;i<vquotes.size() && i<curr_pos+max_lines;i++)
 		display_quotation(i);
@@ -1255,7 +1298,7 @@ int scroll_right_1_column()
 		return 0;
 	while(mcolumns[vcolumns[++curr_col_pos]]==false); //	取消所在列的反白显示
 	display_title();
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	for(size_t i=curr_pos;i<vquotes.size() && i<curr_pos+max_lines;i++)
 		display_quotation(i);
@@ -1265,7 +1308,7 @@ int scroll_right_1_column()
 
 int move_backward_1_line()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1295,7 +1338,7 @@ int move_backward_1_line()
 }
 int goto_file_top()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1325,7 +1368,7 @@ int goto_file_top()
 }
 int goto_file_bottom()
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1353,7 +1396,7 @@ int goto_file_bottom()
 
 void focus_quotation(int index)
 {
-	if(vquotes.size()==0)
+	if(vquotes.empty())
 		return;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1396,8 +1439,7 @@ CTradeRsp::CTradeRsp()
 	memset(license, 0x00, sizeof(license));
 }
 CTradeRsp::~CTradeRsp()
-{
-}
+= default;
 
 //已连接
 void CTradeRsp::OnFrontConnected()
@@ -1419,8 +1461,8 @@ void CTradeRsp::OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthentica
 //登录应答
 void CTradeRsp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast)
 {
-	CThostFtdcRspUserLoginField RspUserLogin;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcRspUserLoginField RspUserLogin{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&RspUserLogin, 0x00, sizeof(RspUserLogin));
 	memset(&RspInfo, 0x00, sizeof(RspInfo));
@@ -1434,8 +1476,8 @@ void CTradeRsp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,CThost
 //登出应答
 void CTradeRsp::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout,CThostFtdcRspInfoField *pRspInfo,int nRequestID,bool bIsLast)
 {
-	CThostFtdcUserLogoutField UserLogout;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcUserLogoutField UserLogout{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&UserLogout, 0x00, sizeof(UserLogout));
 	memset(&RspInfo, 0x00, sizeof(RspInfo));
@@ -1449,8 +1491,8 @@ void CTradeRsp::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout,CThostFtd
 //查询合约应答
 void CTradeRsp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcInstrumentField Instrument;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcInstrumentField Instrument{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&Instrument,0x00,sizeof(Instrument));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1468,8 +1510,8 @@ void CTradeRsp::OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMa
 
 void CTradeRsp::OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcOrderField Order;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcOrderField Order{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&Order,0x00,sizeof(Order));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1482,8 +1524,8 @@ void CTradeRsp::OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfoFie
 
 void CTradeRsp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcTradeField Trade;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcTradeField Trade{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&Trade,0x00,sizeof(Trade));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1496,8 +1538,8 @@ void CTradeRsp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoFie
 
 void CTradeRsp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcInvestorPositionField InvestorPosition;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcInvestorPositionField InvestorPosition{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&InvestorPosition,0x00,sizeof(InvestorPosition));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1516,8 +1558,8 @@ void CTradeRsp::OnRspQryInvestorPositionDetail(CThostFtdcInvestorPositionDetailF
 ///请求查询资金账户响应
 void CTradeRsp::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcTradingAccountField TradingAccount;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcTradingAccountField TradingAccount{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&TradingAccount,0x00,sizeof(TradingAccount));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1531,8 +1573,8 @@ void CTradeRsp::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAc
 ///报单录入请求响应
 void CTradeRsp::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcInputOrderField InputOrder;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcInputOrderField InputOrder{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&InputOrder,0x00,sizeof(InputOrder));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1546,8 +1588,8 @@ void CTradeRsp::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostF
 ///报单操作请求响应
 void CTradeRsp::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	CThostFtdcInputOrderActionField InputOrderAction;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcInputOrderActionField InputOrderAction{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&InputOrderAction,0x00,sizeof(InputOrderAction));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1560,7 +1602,7 @@ void CTradeRsp::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAct
 
 void CTradeRsp::OnRtnOrder(CThostFtdcOrderField *pOrder)
 {
-	CThostFtdcOrderField Order;
+	CThostFtdcOrderField Order{};
 
 	memset(&Order,0x00,sizeof(Order));
 	if(pOrder)
@@ -1570,7 +1612,7 @@ void CTradeRsp::OnRtnOrder(CThostFtdcOrderField *pOrder)
 
 void CTradeRsp::OnRtnTrade(CThostFtdcTradeField *pTrade)
 {
-	CThostFtdcTradeField Trade;
+	CThostFtdcTradeField Trade{};
 
 	memset(&Trade,0x00,sizeof(Trade));
 	if(pTrade)
@@ -1580,8 +1622,8 @@ void CTradeRsp::OnRtnTrade(CThostFtdcTradeField *pTrade)
 
 void CTradeRsp::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo)
 {
-	CThostFtdcInputOrderField InputOrder;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcInputOrderField InputOrder{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&InputOrder,0x00,sizeof(InputOrder));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1594,8 +1636,8 @@ void CTradeRsp::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CTho
 
 void CTradeRsp::OnErrRtnOrderAction(CThostFtdcOrderActionField *pOrderAction, CThostFtdcRspInfoField *pRspInfo)
 {
-	CThostFtdcOrderActionField OrderAction;
-	CThostFtdcRspInfoField RspInfo;
+	CThostFtdcOrderActionField OrderAction{};
+	CThostFtdcRspInfoField RspInfo{};
 
 	memset(&OrderAction,0x00,sizeof(OrderAction));
 	memset(&RspInfo,0x00,sizeof(RspInfo));
@@ -1622,9 +1664,7 @@ CMarketRsp::CMarketRsp()
 
 }
 CMarketRsp::~CMarketRsp()
-{
-	
-}
+= default;
 void CMarketRsp::OnFrontConnected()
 {
 	post_task(std::bind(&CMarketRsp::HandleFrontConnected,this));
@@ -1657,8 +1697,7 @@ void CMarketRsp::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMark
 
 void display_quotation(size_t index)
 {
-	int i=index,y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int i=index,y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_MAINBOARD)
 		return;
@@ -1676,7 +1715,8 @@ void display_quotation(size_t index)
 	if (previous_close == DBL_MAX || fabs(previous_close) < 0.000001)
 		previous_close = vquotes[i].DepthMarketData.PreSettlementPrice;
 
-	for(iter=vcolumns.begin(),pos=0;iter!=vcolumns.end();iter++,pos++){
+	
+	for(auto iter=vcolumns.begin();iter!=vcolumns.end();iter++,pos++){
 		if(mcolumns[*iter]==false)
 			continue;
 		if(*iter!=COL_SYMBOL && *iter!=COL_SYMBOL_NAME && pos<curr_col_pos)
@@ -1853,10 +1893,8 @@ void order_display_quotation(const char *product_id)
 }
 void display_column(int col)
 {
-	int i,y,x;
-	std::vector<int>::iterator iter;
-
-	for(iter=vcolumns.begin(),i=0;iter!=vcolumns.end();iter++,i++){
+	int i=0,y,x;
+	for(auto iter=vcolumns.begin();iter!=vcolumns.end();iter++,i++){
 		if(*iter!=col)
 			continue;
 		if(i<column_settings_curr_pos || i>column_settings_curr_pos+column_settings_max_lines-1)
@@ -2974,7 +3012,7 @@ void order_move_complete()
 		price=order_moving_at_price;
 		if(fabs(iter->LimitPrice-price)<0.000001){
 			// 改限价单
-			CThostFtdcInputOrderActionField Req;
+			CThostFtdcInputOrderActionField Req{};
 			memset(&Req,0x00,sizeof(Req));
 			strncpy(Req.BrokerID,iter->BrokerID,sizeof(Req.BrokerID)-1);
 			strncpy(Req.InvestorID,iter->InvestorID,sizeof(Req.InvestorID)-1);
@@ -2996,7 +3034,7 @@ void order_move_complete()
 			// 记录订单
 			vCancelingOrders.push_back(Req);
 
-			CThostFtdcOrderField Order;
+			CThostFtdcOrderField Order{};
 			memset(&Order,0x00,sizeof(Order));
 			strncpy(Order.InvestorID,iter->InvestorID,sizeof(Order.InvestorID)-1);
 			strncpy(Order.ExchangeID,iter->ExchangeID,sizeof(Order.ExchangeID)-1);
@@ -3188,7 +3226,7 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 	if(iter_quot==vquotes.end())
 		return -1;
 
-	CThostFtdcInputOrderField Req;
+	CThostFtdcInputOrderField Req{};
 			
 	memset(&Req,0x00,sizeof(Req));
 	strncpy(Req.BrokerID,pTradeRsp->broker,sizeof(Req.BrokerID)-1);
@@ -3215,7 +3253,7 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 	if(pTradeReq->ReqOrderInsert(&Req,pTradeRsp->m_nTradeRequestID++)<0)
 		return -1;
 
-	CThostFtdcOrderField Order;
+	CThostFtdcOrderField Order{};
 	memset(&Order,0x00,sizeof(Order));
 	strcpy(Order.InstrumentID,Req.InstrumentID);
 	strcpy(Order.BrokerID,Req.BrokerID);
@@ -3324,7 +3362,7 @@ void order_cancel_orders_at_price(double price)
 			if(iterCanceling!=vCancelingOrders.end())	// 不重复发送撤单指令
 				continue;
 
-			CThostFtdcInputOrderActionField Req;
+			CThostFtdcInputOrderActionField Req{};
 
 			memset(&Req,0x00,sizeof(Req));
 			strncpy(Req.BrokerID,iter->BrokerID,sizeof(Req.BrokerID)-1);
@@ -3367,7 +3405,7 @@ void order_cancel_all_orders()
 		}
 		if(iterCanceling!=vCancelingOrders.end())	// 不重复发送撤单指令
 			continue;
-		CThostFtdcInputOrderActionField Req;
+		CThostFtdcInputOrderActionField Req{};
 
 		memset(&Req,0x00,sizeof(Req));
 		strncpy(Req.BrokerID,iter->BrokerID,sizeof(Req.BrokerID)-1);
@@ -3548,8 +3586,7 @@ void orderlist_reset(const char *user)
 
 void orderlist_display_title()
 {
-	int y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_ORDERLIST)
 		return;
@@ -3558,7 +3595,8 @@ void orderlist_display_title()
 	x=0;
 	move(0,0);
 	clrtoeol();
-	for(iter=vorderlist_columns.begin(),pos=0;iter!=vorderlist_columns.end();iter++,pos++){
+	
+	for(auto iter=vorderlist_columns.begin();iter!=vorderlist_columns.end();iter++,pos++){
 		if(morderlist_columns[*iter]==false)
 			continue;
 		if(*iter!=ORDERLIST_COL_ACC_ID && *iter!=ORDERLIST_COL_SYMBOL && *iter!=ORDERLIST_COL_SYMBOL_NAME && pos<orderlist_curr_col_pos)
@@ -3693,8 +3731,7 @@ void orderlist_display_status()
 
 void orderlist_display_order(int index)
 {
-	size_t i,y,x,pos,maxy,maxx,j;
-	std::vector<int>::iterator iter;
+	size_t i,y,x,pos=0,maxy,maxx,j;
 
 	if(working_window!=WIN_ORDERLIST)
 		return;
@@ -3712,8 +3749,8 @@ void orderlist_display_order(int index)
 		return;
 	move(y,0);
 	clrtoeol();
-
-	for(iter=vorderlist_columns.begin(),pos=0;iter!=vorderlist_columns.end();iter++,pos++){
+	
+	for(auto iter=vorderlist_columns.begin();iter!=vorderlist_columns.end();iter++,pos++){
 		if(morderlist_columns[*iter]==false)
 			continue;
 		if(*iter!=ORDERLIST_COL_ACC_ID && *iter!=ORDERLIST_COL_SYMBOL && *iter!=ORDERLIST_COL_SYMBOL_NAME && pos<orderlist_curr_col_pos)
@@ -3849,7 +3886,7 @@ void orderlist_scroll_right_1_column()
 
 void orderlist_move_forward_1_line()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3868,7 +3905,7 @@ void orderlist_move_forward_1_line()
 
 void orderlist_move_backward_1_line()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3887,7 +3924,7 @@ void orderlist_move_backward_1_line()
 
 void orderlist_scroll_forward_1_line()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3904,7 +3941,7 @@ void orderlist_scroll_forward_1_line()
 
 void orderlist_scroll_backward_1_line()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3922,7 +3959,7 @@ void orderlist_scroll_backward_1_line()
 
 void orderlist_goto_file_top()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3940,7 +3977,7 @@ void orderlist_goto_file_top()
 
 void orderlist_goto_file_bottom()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3958,7 +3995,7 @@ void orderlist_goto_file_bottom()
 
 void orderlist_goto_page_top()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3969,7 +4006,7 @@ void orderlist_goto_page_top()
 }
 void orderlist_goto_page_bottom()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -3985,7 +4022,7 @@ void orderlist_goto_page_bottom()
 }
 void orderlist_goto_page_middle()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -4077,8 +4114,7 @@ void filllist_reset(const char *user)
 }
 void filllist_display_title()
 {
-	int y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_FILLLIST)
 		return;
@@ -4087,7 +4123,8 @@ void filllist_display_title()
 	x=0;
 	move(0,0);
 	clrtoeol();
-	for(iter=vfilllist_columns.begin(),pos=0;iter!=vfilllist_columns.end();iter++,pos++){
+	
+	for(auto iter=vfilllist_columns.begin();iter!=vfilllist_columns.end();iter++,pos++){
 		if(mfilllist_columns[*iter]==false)
 			continue;
 		if(*iter!=FILLLIST_COL_ACC_ID && *iter!=FILLLIST_COL_SYMBOL && *iter!=FILLLIST_COL_SYMBOL_NAME && pos<filllist_curr_col_pos)
@@ -4206,8 +4243,7 @@ void filllist_display_status()
 
 void filllist_display_filledorder(int index)
 {
-	size_t i,y,x,pos,maxy,maxx,j;
-	std::vector<int>::iterator iter;
+	size_t i,y,x,pos=0,maxy,maxx,j;
 
 	if(working_window!=WIN_FILLLIST)
 		return;
@@ -4225,8 +4261,8 @@ void filllist_display_filledorder(int index)
 		return;
 	move(y,0);
 	clrtoeol();
-
-	for(iter=vfilllist_columns.begin(),pos=0;iter!=vfilllist_columns.end();iter++,pos++){
+	
+	for(auto iter=vfilllist_columns.begin();iter!=vfilllist_columns.end();iter++,pos++){
 		if(mfilllist_columns[*iter]==false)
 			continue;
 		if(*iter!=FILLLIST_COL_ACC_ID && *iter!=FILLLIST_COL_SYMBOL && *iter!=FILLLIST_COL_SYMBOL_NAME && pos<filllist_curr_col_pos)
@@ -4332,7 +4368,7 @@ void filllist_scroll_right_1_column()
 
 void filllist_move_forward_1_line()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4351,7 +4387,7 @@ void filllist_move_forward_1_line()
 
 void filllist_move_backward_1_line()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4370,7 +4406,7 @@ void filllist_move_backward_1_line()
 
 void filllist_scroll_forward_1_line()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4387,7 +4423,7 @@ void filllist_scroll_forward_1_line()
 
 void filllist_scroll_backward_1_line()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4405,7 +4441,7 @@ void filllist_scroll_backward_1_line()
 
 void filllist_goto_file_top()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4423,7 +4459,7 @@ void filllist_goto_file_top()
 
 void filllist_goto_file_bottom()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4441,7 +4477,7 @@ void filllist_goto_file_bottom()
 
 void filllist_goto_page_top()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4452,7 +4488,7 @@ void filllist_goto_page_top()
 }
 void filllist_goto_page_bottom()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4468,7 +4504,7 @@ void filllist_goto_page_bottom()
 }
 void filllist_goto_page_middle()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -4560,8 +4596,7 @@ void positionlist_reset(const char *user)
 }
 void positionlist_display_title()
 {
-	int y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_POSITION)
 		return;
@@ -4570,7 +4605,8 @@ void positionlist_display_title()
 	x=0;
 	move(0,0);
 	clrtoeol();
-	for(iter=vpositionlist_columns.begin(),pos=0;iter!=vpositionlist_columns.end();iter++,pos++){
+	
+	for(auto iter=vpositionlist_columns.begin();iter!=vpositionlist_columns.end();iter++,pos++){
 		if(mpositionlist_columns[*iter]==false)
 			continue;
 		if(*iter!=POSITIONLIST_COL_ACC_ID && *iter!=POSITIONLIST_COL_SYMBOL && *iter!=POSITIONLIST_COL_SYMBOL_NAME && pos<positionlist_curr_col_pos)
@@ -4712,8 +4748,7 @@ void positionlist_display_status()
 
 void positionlist_display_position(const char *szAccID,const char *szExchangeID,const char *szInstrumentID)
 {
-	size_t i,y,x,pos,maxy,maxx,j;
-	std::vector<int>::iterator iter;
+	size_t i,y,x,pos=0,maxy,maxx,j;
 
 	if(working_window!=WIN_POSITION)
 		return;
@@ -4735,8 +4770,8 @@ void positionlist_display_position(const char *szAccID,const char *szExchangeID,
 		return;
 	move(y,0);
 	clrtoeol();
-
-	for(iter=vpositionlist_columns.begin(),pos=0;iter!=vpositionlist_columns.end();iter++,pos++){
+	
+	for(auto iter=vpositionlist_columns.begin();iter!=vpositionlist_columns.end();iter++,pos++){
 		if(mpositionlist_columns[*iter]==false)
 			continue;
 		if(*iter!=POSITIONLIST_COL_ACC_ID && *iter!=POSITIONLIST_COL_SYMBOL && *iter!=POSITIONLIST_COL_SYMBOL_NAME && pos<positionlist_curr_col_pos)
@@ -4835,8 +4870,8 @@ void positionlist_display_positions()
 	std::erase_if(vPositions, [](stPosition_t & pos) {
 		return !(pos.BuyingVolume!=0 || pos.SellingVolume!=0 || pos.BuyVolume!=0 || pos.SellingVolume != 0);
 	});
-	for(size_t i=0;i<vPositions.size();i++)
-		positionlist_display_position(vPositions[i].AccID,vPositions[i].ExchangeID,vPositions[i].InstrumentID);
+	for(auto & vPosition : vPositions)
+		positionlist_display_position(vPosition.AccID,vPosition.ExchangeID,vPosition.InstrumentID);
 }
 
 void positionlist_display_focus()
@@ -4862,7 +4897,7 @@ void positionlist_scroll_right_1_column()
 
 void positionlist_move_forward_1_line()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4881,7 +4916,7 @@ void positionlist_move_forward_1_line()
 
 void positionlist_move_backward_1_line()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4900,7 +4935,7 @@ void positionlist_move_backward_1_line()
 
 void positionlist_scroll_forward_1_line()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4917,7 +4952,7 @@ void positionlist_scroll_forward_1_line()
 
 void positionlist_scroll_backward_1_line()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4935,7 +4970,7 @@ void positionlist_scroll_backward_1_line()
 
 void positionlist_goto_file_top()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4953,7 +4988,7 @@ void positionlist_goto_file_top()
 
 void positionlist_goto_file_bottom()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4971,7 +5006,7 @@ void positionlist_goto_file_bottom()
 
 void positionlist_goto_page_top()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4982,7 +5017,7 @@ void positionlist_goto_page_top()
 }
 void positionlist_goto_page_bottom()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -4998,7 +5033,7 @@ void positionlist_goto_page_bottom()
 }
 void positionlist_goto_page_middle()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -5080,8 +5115,7 @@ void acclist_reset(const char *user)
 }
 void acclist_display_title()
 {
-	int y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_MONEY)
 		return;
@@ -5090,7 +5124,8 @@ void acclist_display_title()
 	x=0;
 	move(0,0);
 	clrtoeol();
-	for(iter=vacclist_columns.begin(),pos=0;iter!=vacclist_columns.end();iter++,pos++){
+	
+	for(auto iter=vacclist_columns.begin();iter!=vacclist_columns.end();iter++,pos++){
 		if(macclist_columns[*iter]==false)
 			continue;
 		if(*iter!=ACCLIST_COL_ACC_ID && *iter!=ACCLIST_COL_ACC_NAME && pos<acclist_curr_col_pos)
@@ -5221,8 +5256,7 @@ void acclist_display_status()
 
 void acclist_display_acc(const char *szBrokerID,const char *szAccID)
 {
-	size_t i,y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	size_t i,y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_MONEY)
 		return;
@@ -5237,8 +5271,8 @@ void acclist_display_acc(const char *szBrokerID,const char *szAccID)
 
 	move(y,0);
 	clrtoeol();
-
-	for(iter=vacclist_columns.begin(),pos=0;iter!=vacclist_columns.end();iter++,pos++){
+	
+	for(auto iter=vacclist_columns.begin();iter!=vacclist_columns.end();iter++,pos++){
 		if(macclist_columns[*iter]==false)
 			continue;
 		if(*iter!=ACCLIST_COL_ACC_ID && *iter!=ACCLIST_COL_ACC_NAME && pos<acclist_curr_col_pos)
@@ -5310,8 +5344,8 @@ void acclist_display_acc(const char *szBrokerID,const char *szAccID)
 
 void acclist_display_accs()
 {
-	for(size_t i=0;i<vAccounts.size();i++)
-		acclist_display_acc(vAccounts[i].BrokerID,vAccounts[i].AccID);
+	for(auto & vAccount : vAccounts)
+		acclist_display_acc(vAccount.BrokerID,vAccount.AccID);
 }
 
 void acclist_display_focus()
@@ -5337,7 +5371,7 @@ void acclist_scroll_right_1_column()
 
 void acclist_move_forward_1_line()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5356,7 +5390,7 @@ void acclist_move_forward_1_line()
 
 void acclist_move_backward_1_line()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5375,7 +5409,7 @@ void acclist_move_backward_1_line()
 
 void acclist_scroll_forward_1_line()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5392,7 +5426,7 @@ void acclist_scroll_forward_1_line()
 
 void acclist_scroll_backward_1_line()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5410,7 +5444,7 @@ void acclist_scroll_backward_1_line()
 
 void acclist_goto_file_top()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5428,7 +5462,7 @@ void acclist_goto_file_top()
 
 void acclist_goto_file_bottom()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5446,7 +5480,7 @@ void acclist_goto_file_bottom()
 
 void acclist_goto_page_top()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5457,7 +5491,7 @@ void acclist_goto_page_top()
 }
 void acclist_goto_page_bottom()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5473,7 +5507,7 @@ void acclist_goto_page_bottom()
 }
 void acclist_goto_page_middle()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
@@ -5517,8 +5551,7 @@ void acclist_move_backward_half_page()
 // Mainboard column settings
 void column_settings_refresh_screen()
 {
-	int i,y,x;
-	std::map<int,bool>::iterator iter;
+	int i=0,y,x;
 	
 	if(working_window!=WIN_COLUMN_SETTINGS)
 		return;
@@ -5534,7 +5567,7 @@ void column_settings_refresh_screen()
 	getmaxyx(stdscr,y,x);
 	column_settings_max_lines=y-2;
 	column_settings_display_title();
-	for(iter=mcolumns.begin(),i=0;iter!=mcolumns.end();iter++,i++)
+	for(auto iter=mcolumns.begin();iter!=mcolumns.end();iter++,i++)
 		display_column(iter->first);
 	column_settings_display_status();
 	if(column_settings_curr_line!=0)
@@ -5573,6 +5606,7 @@ void symbol_refresh_screen()
 		mvprintw(i++,0,"保证金率：");
 	else
 		mvprintw(i++,0,"保证金率：%.1f%%",iter->Instrument.ShortMarginRatio*100);
+	mvprintw(i++,0,"每手保证金：%.1f",iter->Instrument.ShortMarginRatio*iter->Instrument.VolumeMultiple*iter->DepthMarketData.LastPrice);
 	mvprintw(i++,0,"最后交易日：%s",iter->Instrument.ExpireDate);
 	mvprintw(i++,0,"品种：%s",iter->Instrument.ProductID);
 	switch(iter->Instrument.ProductClass){
@@ -5619,8 +5653,7 @@ void symbol_refresh_screen()
 
 void display_title()
 {
-	int y,x,pos,maxy,maxx;
-	std::vector<int>::iterator iter;
+	int y,x,pos=0,maxy,maxx;
 
 	if(working_window!=WIN_MAINBOARD)
 		return;
@@ -5629,7 +5662,8 @@ void display_title()
 	x=0;
 	move(0,0);
 	clrtoeol();
-	for(iter=vcolumns.begin(),pos=0;iter!=vcolumns.end();iter++,pos++){
+	
+	for(auto iter=vcolumns.begin();iter!=vcolumns.end();iter++,pos++){
 		if(mcolumns[*iter]==false)
 			continue;
 		if(*iter!=COL_SYMBOL && *iter!=COL_SYMBOL_NAME && pos<curr_col_pos)
@@ -5934,16 +5968,16 @@ void work_thread()
 	
 	// Run
 	while (true) {
-		_sem.wait();
-		_lock.lock();
-		auto task = _vTasks.begin();
-		if (task == _vTasks.end()) {
-			_lock.unlock();
+		sem.wait();
+		lock.lock();
+		auto task = vTasks.begin();
+		if (task == vTasks.end()) {
+			lock.unlock();
 			continue;
 		}
 		(*task)();
-		_vTasks.erase(task);
-		_lock.unlock();
+		vTasks.erase(task);
+		lock.unlock();
 	}
 
 	// End screen
@@ -6406,7 +6440,7 @@ int goto_mainboard_window_from_log()
 
 int goto_order_window_from_orderlist()
 {
-	if(vOrders.size()==0)
+	if(vOrders.empty())
 		return 0;
 	if(orderlist_curr_line==0){	// first select
 		orderlist_curr_line=1;
@@ -7725,7 +7759,7 @@ int input_parse_log(int *num,int *cmd)
 
 int goto_order_window_from_filllist()
 {
-	if(vFilledOrders.size()==0)
+	if(vFilledOrders.empty())
 		return 0;
 	if(filllist_curr_line==0){	// first select
 		filllist_curr_line=1;
@@ -7753,7 +7787,7 @@ int goto_order_window_from_filllist()
 
 int goto_order_window_from_positionlist()
 {
-	if(vPositions.size()==0)
+	if(vPositions.empty())
 		return 0;
 	if(positionlist_curr_line==0){	// first select
 		positionlist_curr_line=1;
@@ -7893,21 +7927,25 @@ int goto_filllist_window_from_log()
 
 int goto_positionlist_window_from_acclist()
 {
-	if(vAccounts.size()==0)
+	if(vAccounts.empty())
 		return 0;
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
 		return 0;
 	}
-	int i;
-	for(i=0;i<vPositions.size();i++){
-		if(strcmp(vPositions[i].AccID,vAccounts[acclist_curr_pos+acclist_curr_line-1].AccID)==0 && strcmp(vPositions[i].BrokerID,vAccounts[acclist_curr_pos+acclist_curr_line-1].BrokerID)==0)
-			break;
+	if(vPositions.empty()) {
+		positionlist_curr_line = 0;
+	}else {
+		int i;
+		for(i=0;i<vPositions.size();i++){
+			if(strcmp(vPositions[i].AccID,vAccounts[acclist_curr_pos+acclist_curr_line-1].AccID)==0 && strcmp(vPositions[i].BrokerID,vAccounts[acclist_curr_pos+acclist_curr_line-1].BrokerID)==0)
+				break;
+		}
+		if(i==vPositions.size())
+			return 0;
+		positionlist_curr_line=i+1;
 	}
-	if(i==vPositions.size())
-		return 0;
 
-	positionlist_curr_line=i+1;
 	working_window=WIN_POSITION;
 	positionlist_refresh_screen();
 	
@@ -7923,11 +7961,9 @@ int goto_positionlist_window_from_log()
 }
 
 
-
 int column_settings_move_up_1_line()
 {
-	std::vector<int>::iterator iter;
-	int i,h,l;
+	int i;
 	
 	if(vcolumns.size()<=2)
 		return 0;
@@ -7940,12 +7976,13 @@ int column_settings_move_up_1_line()
 		return 0;
 	if(column_settings_curr_line==3 && column_settings_curr_pos==0)	// Already top
 		return 0;
+	std::vector<COL_ITEM>::iterator iter;
 	for(iter=vcolumns.begin(),i=0;iter!=vcolumns.end();iter++,i++){
 		if(i==column_settings_curr_pos+column_settings_curr_line-1)
 			break;
 	}
-	h=*iter;
-	l=*(iter-1);
+	auto h =*iter;
+	auto l =*(iter-1);
 	vcolumns.erase(iter);
 	for(iter=vcolumns.begin();iter!=vcolumns.end();iter++){
 		if(*iter==l)
@@ -7961,8 +7998,8 @@ int column_settings_move_up_1_line()
 
 int column_settings_move_down_1_line()
 {
-	std::vector<int>::iterator iter;
-	int i,h,l;
+
+	int i;
 	
 	if(vcolumns.size()<=2)
 		return 0;
@@ -7975,12 +8012,13 @@ int column_settings_move_down_1_line()
 		return 0;
 	if(column_settings_curr_line==vcolumns.size()-column_settings_curr_pos)	// Already bottom
 		return 0;
+	std::vector<COL_ITEM>::iterator iter;
 	for(iter=vcolumns.begin(),i=0;iter!=vcolumns.end();iter++,i++){
 		if(i==column_settings_curr_pos+column_settings_curr_line-1)
 			break;
 	}
-	l=*iter;
-	h=*(iter+1);
+	auto h =*iter;
+	auto l =*(iter-1);
 	vcolumns.erase(iter+1);
 	for(iter=vcolumns.begin();iter!=vcolumns.end();iter++){
 		if(*iter==l)
@@ -7996,7 +8034,7 @@ int column_settings_move_down_1_line()
 
 int column_settings_select_column()
 {
-	std::vector<int>::iterator iter;
+	std::vector<COL_ITEM>::iterator iter;
 	int i;
 	
 	if(vcolumns.size()<=2)
@@ -8019,11 +8057,8 @@ int column_settings_select_column()
 	return 0;
 }
 
-int column_settings_move_backward_1_line()
-{
-	std::vector<int>::iterator iter;
+int column_settings_move_backward_1_line(){
 	int i;
-
 	if(vcolumns.size()<=2)
 		return 0;
 	if(column_settings_curr_line==0){	// first select
@@ -8044,6 +8079,7 @@ int column_settings_move_backward_1_line()
 		scrl(-1);
 		setscrreg(0,column_settings_max_lines+1);
 		column_settings_curr_pos--;
+		std::vector<COL_ITEM>::iterator iter;
 		for(iter=vcolumns.begin(),i=0;iter!=vcolumns.end();iter++,i++){
 			if(i==column_settings_curr_pos)
 				break;
@@ -8057,7 +8093,7 @@ int column_settings_move_backward_1_line()
 
 int column_settings_move_forward_1_line()
 {
-	std::vector<int>::iterator iter;
+
 	int i;
 
 	if(vcolumns.size()<=2)
@@ -8080,6 +8116,7 @@ int column_settings_move_forward_1_line()
 		scroll(stdscr);
 		setscrreg(0,column_settings_max_lines+1);
 		column_settings_curr_pos++;
+		std::vector<COL_ITEM>::iterator iter;
 		for(iter=vcolumns.begin(),i=0;iter!=vcolumns.end();iter++,i++){
 			if(i==column_settings_curr_pos+column_settings_max_lines-1)
 				break;
@@ -8191,7 +8228,7 @@ void CTradeRsp::HandleFrontConnected()
 	m_nTradeRequestID=0;
 
 	if(strlen(UserProductInfo)){
-		CThostFtdcReqAuthenticateField AuthenticateReq;
+		CThostFtdcReqAuthenticateField AuthenticateReq{};
 		memset(&AuthenticateReq,0x00,sizeof(AuthenticateReq));
 		strncpy(AuthenticateReq.BrokerID,broker,sizeof(AuthenticateReq.BrokerID)-1);
 		strncpy(AuthenticateReq.UserID,user,sizeof(AuthenticateReq.UserID)-1);
@@ -8200,7 +8237,7 @@ void CTradeRsp::HandleFrontConnected()
 		strcpy(AuthenticateReq.AuthCode,AuthCode); // XTP的认证Key超长，需要借用到后一字段（AppID）的空间
 		m_pTradeReq->ReqAuthenticate(&AuthenticateReq,m_nTradeRequestID++);
 	}else{
-		CThostFtdcReqUserLoginField Req;
+		CThostFtdcReqUserLoginField Req{};
 	
 		memset(&Req,0x00,sizeof(Req));
 		strcpy(Req.BrokerID,broker);
@@ -8250,7 +8287,7 @@ void CTradeRsp::HandleRspAuthenticate(CThostFtdcRspAuthenticateField& RspAuthent
 	else
 		status_print("%s终端认证成功.", user);
 
-	CThostFtdcReqUserLoginField Req;
+	CThostFtdcReqUserLoginField Req{};
 	
 	memset(&Req,0x00,sizeof(Req));
 	strcpy(Req.BrokerID,broker);
@@ -8375,7 +8412,7 @@ void CTradeRsp::HandleRspQryInstrument(CThostFtdcInstrumentField& Instrument, CT
 			subscribe(index);
 	}
 
-	if(vquotes.size()==0 || !bIsLast)
+	if(vquotes.empty() || !bIsLast)
 		return;
 	status_print("查询合约成功.");
 	
@@ -8595,9 +8632,9 @@ void CTradeRsp::HandleRspQryInvestorPosition(CThostFtdcInvestorPositionField& In
 			strcpy(Posi.InstrumentID,iterInvestorPosition->InstrumentID);
 			strcpy(Posi.BrokerID,iterInvestorPosition->BrokerID);
 			strcpy(Posi.AccID,iterInvestorPosition->InvestorID);
-			for(size_t i=0;i<vquotes.size();i++){
-				if(strcmp(Posi.InstrumentID,vquotes[i].product_id)==0){
-					strcpy(Posi.ExchangeID,vquotes[i].exchange_id);
+			for(auto & vquote : vquotes){
+				if(strcmp(Posi.InstrumentID,vquote.product_id)==0){
+					strcpy(Posi.ExchangeID,vquote.exchange_id);
 					break;
 				}
 			}
@@ -9024,9 +9061,9 @@ void CTradeRsp::HandleRtnOrder(CThostFtdcOrderField& Order)
 					strcpy(Posi.InstrumentID,Order.InstrumentID);
 					strcpy(Posi.BrokerID,Order.BrokerID);
 					strcpy(Posi.AccID,Order.InvestorID);
-					for(size_t i=0;i<vquotes.size();i++){
-						if(strcmp(Posi.InstrumentID,vquotes[i].product_id)==0){
-							strcpy(Posi.ExchangeID,vquotes[i].exchange_id);
+					for(auto & vquote : vquotes){
+						if(strcmp(Posi.InstrumentID,vquote.product_id)==0){
+							strcpy(Posi.ExchangeID,vquote.exchange_id);
 							break;
 						}
 					}
@@ -9302,10 +9339,10 @@ void CMarketRsp::HandleFrontConnected()
 	status_print("行情通道已连接.");
 
 	MarketConnectionStatus=CONNECTION_STATUS_CONNECTED;
-	CThostFtdcReqUserLoginField Req;
+	CThostFtdcReqUserLoginField Req{};
 	
-	for(size_t i=0;i<vquotes.size();i++)
-		vquotes[i].subscribed=false;
+	for(auto & vquote : vquotes)
+		vquote.subscribed=false;
 
 	memset(&Req,0x00,sizeof(Req));
 	strcpy(Req.BrokerID,broker);
@@ -9439,12 +9476,12 @@ int unsubscribe(size_t index)
 	char *ppInstrumentID[1];
 
 	if(index==UINT_MAX){
-		for(size_t i=0;i<vquotes.size();i++){
-			if(vquotes[i].subscribed){
-				ppInstrumentID[0]=(char *)vquotes[i].Instrument.InstrumentID;
+		for(auto & vquote : vquotes){
+			if(vquote.subscribed){
+				ppInstrumentID[0]=(char *)vquote.Instrument.InstrumentID;
 				if(pMarketRsp->m_pMarketReq->UnSubscribeMarketData(ppInstrumentID, 1)<0)
 					return -1;
-				vquotes[i].subscribed=false;
+				vquote.subscribed=false;
 			}
 		}	
 		return 0;
@@ -9517,7 +9554,7 @@ void corner_display_matches()
 // 	if(strlen(strsearching)==0)
 // 		return;
 	for(i=corner_curr_pos,j=0;i<vquotes.size() && j<5;i++){
-		if(strnicmp(vquotes[i].product_id,strsearching,strlen(strsearching))==0){
+		if(_strnicmp(vquotes[i].product_id,strsearching,strlen(strsearching))==0){
 			if(j==0 && strlen(strsearching)>0){
 				mvwprintw(corner_win,j+1,strlen(strsearching)+1,"%s",vquotes[i].product_id+strlen(strsearching));
 				mvwchgat(corner_win,j+1,strlen(strsearching)+1,strlen(vquotes[i].product_id)-strlen(strsearching),A_REVERSE,0,NULL);
@@ -9706,7 +9743,7 @@ void corner_move_forward_1_line()
 	if(corner_curr_line!=corner_max_lines){
 		corner_curr_line++;
 	}else{
-		size_t i,j,next_pos;
+		size_t next_pos;
 		
 		for(i=corner_curr_pos,j=0;i<vquotes.size();i++){
 			if(strncmp(vquotes[i].product_id,strsearching,strlen(strsearching))==0){
@@ -9837,7 +9874,7 @@ void order_corner_display_matches()
 // 	if(strlen(strsearching)==0)
 // 		return;
 	for(i=order_corner_curr_pos,j=0;i<vquotes.size() && j<5;i++){
-		if(strnicmp(vquotes[i].product_id,order_strsearching,strlen(order_strsearching))==0){
+		if(_strnicmp(vquotes[i].product_id,order_strsearching,strlen(order_strsearching))==0){
 			if(j==0 && strlen(order_strsearching)>0){
 				mvwprintw(order_corner_win,j+1,strlen(order_strsearching)+1,"%s",vquotes[i].product_id+strlen(order_strsearching));
 				mvwchgat(order_corner_win,j+1,strlen(order_strsearching)+1,strlen(vquotes[i].product_id)-strlen(order_strsearching),A_REVERSE,0,NULL);
@@ -10036,7 +10073,7 @@ void order_corner_move_forward_1_line()
 	if(order_corner_curr_line!=order_corner_max_lines){
 		order_corner_curr_line++;
 	}else{
-		size_t i,j,next_pos;
+		size_t next_pos;
 		
 		for(i=order_corner_curr_pos,j=0;i<vquotes.size();i++){
 			if(strncmp(vquotes[i].product_id,order_strsearching,strlen(order_strsearching))==0){

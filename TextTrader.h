@@ -5,8 +5,6 @@
 #ifndef __TEXT_TRADER_H__
 #define __TEXT_TRADER_H__
 
-#include "curses.h"
-#include <map>
 #include <vector>
 
 #include "ThostFtdcMdApi.h"

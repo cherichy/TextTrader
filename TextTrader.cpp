@@ -581,6 +581,7 @@ int main(int argc,char *argv[])
 		vcolumns.emplace_back(COL_ITEM(i));
 		mcolumns[COL_ITEM(i)] = true;
 	}
+	mcolumns[COL_TRADE_VOLUME] = false;
 
 	// Init Order List Columns
 	for(int i = 0;i<sizeof(orderlist_column_items)/sizeof(column_item_t);i++) {
@@ -8680,10 +8681,10 @@ void CMarketRsp::HandleRtnDepthMarketData(CThostFtdcDepthMarketDataField& DepthM
 	if (iter == mInstrumentIndex.end())
 		return;
 	size_t i = iter->second;
-	
-	if(strcmp(vDepthMarketDatas[i].ExchangeID,"CZCE")!=0)
-		vDepthMarketDatas[i].AveragePrice/=vInstruments[i].VolumeMultiple;
+
 	memcpy(&vDepthMarketDatas[i], &DepthMarketData, sizeof(DepthMarketData));
+	if(strncmp(Instrument.ExchangeID,"CZCE",4)!=0)
+		vDepthMarketDatas[i].AveragePrice/=Instrument.VolumeMultiple;
 
 	switch(working_window){
 	case WIN_MAINBOARD:

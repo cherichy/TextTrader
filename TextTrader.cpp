@@ -165,8 +165,15 @@ std::vector<CThostFtdcInputOrderActionField> vCancelingOrders;
 CTradeRsp* pTradeRsp;
 CMarketRsp* pMarketRsp;
 
-int TradeConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
-int MarketConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
+enum CONNECTION_STATUS {
+	CONNECTION_STATUS_DISCONNECTED	= 0,
+	CONNECTION_STATUS_CONNECTED		= 1,
+	CONNECTION_STATUS_LOGINOK		= 2,
+	CONNECTION_STATUS_LOGINFAILED	= 3
+};
+
+CONNECTION_STATUS TradeConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
+CONNECTION_STATUS MarketConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
 std::mutex lock;
 semaphore sem;
 std::vector< std::function<void()> > vTasks;
@@ -191,10 +198,10 @@ enum WIN_TYPE {
 
 WIN_TYPE working_window = WIN_MAINBOARD;
 
-typedef struct {
+struct column_item_t {
 	char name[30];
 	int width;
-} column_item_t;
+} ;
 
 enum COL_ITEM {
 	COL_SYMBOL			=	0,		// 合约
@@ -1030,6 +1037,7 @@ int goto_symbol_window_from_mainboard()
 	
 	return 0;
 }
+
 int goto_order_window_from_mainboard()
 {
 	if(vquotes.empty())
@@ -1126,6 +1134,7 @@ int move_backward_half_page()
 		scroll_backward_1_line();
 	return 0;
 }
+
 int goto_page_top()
 {
 	if(vquotes.empty())
@@ -1180,6 +1189,67 @@ int goto_page_middle()
 	}else{
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
 		curr_line=max_lines/2+1;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}
+
+	return 0;
+}
+
+int move_forward_1_line()
+{
+	if(vquotes.empty())
+		return 0;
+	if(curr_line==0){	// first select
+		curr_line=1;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		return 0;
+	}
+	if(curr_line==vquotes.size()-curr_pos)	// Already bottom
+		return 0;
+	if(curr_line!=max_lines){
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		curr_line++;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}else{
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		move(1,0);
+		setscrreg(1,max_lines);
+		scroll(stdscr);
+		setscrreg(0,max_lines+1);
+		unsubscribe(curr_pos);
+		curr_pos++;
+		display_quotation(curr_pos+max_lines-1);	// new line
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		subscribe(curr_pos+max_lines-1);
+	}
+
+	return 0;
+}
+int move_backward_1_line()
+{
+	if(vquotes.empty())
+		return 0;
+	if(curr_line==0){	// first select
+		curr_line=1;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		return 0;
+	}
+	if(curr_line==1 && curr_pos==0)	// Already top
+		return 0;
+	if(curr_line>1){
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		curr_line--;
+		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+	}else{
+		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+		move(1,0);
+		setscrreg(1,max_lines);
+		scrl(-1);
+		setscrreg(0,max_lines+1);
+		unsubscribe(curr_pos+max_lines-1);
+		curr_pos--;
+		display_quotation(curr_pos);
+		subscribe(curr_pos);
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}
 
@@ -1249,36 +1319,6 @@ int scroll_backward_1_line()
 	return 0;
 }
 
-int move_forward_1_line()
-{
-	if(vquotes.empty())
-		return 0;
-	if(curr_line==0){	// first select
-		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		return 0;
-	}
-	if(curr_line==vquotes.size()-curr_pos)	// Already bottom
-		return 0;
-	if(curr_line!=max_lines){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line++;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		move(1,0);
-		setscrreg(1,max_lines);
-		scroll(stdscr);
-		setscrreg(0,max_lines+1);
-		unsubscribe(curr_pos);
-		curr_pos++;
-		display_quotation(curr_pos+max_lines-1);	// new line
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		subscribe(curr_pos+max_lines-1);
-	}
-
-	return 0;
-}
 int scroll_left_1_column()
 {
 	if(curr_col_pos==2)
@@ -1306,36 +1346,6 @@ int scroll_right_1_column()
 	return 0;
 }
 
-int move_backward_1_line()
-{
-	if(vquotes.empty())
-		return 0;
-	if(curr_line==0){	// first select
-		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-		return 0;
-	}
-	if(curr_line==1 && curr_pos==0)	// Already top
-		return 0;
-	if(curr_line>1){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line--;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		move(1,0);
-		setscrreg(1,max_lines);
-		scrl(-1);
-		setscrreg(0,max_lines+1);
-		unsubscribe(curr_pos+max_lines-1);
-		curr_pos--;
-		display_quotation(curr_pos);
-		subscribe(curr_pos);
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}
-
-	return 0;
-}
 int goto_file_top()
 {
 	if(vquotes.empty())
@@ -1695,6 +1705,7 @@ void CMarketRsp::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMark
 	post_task(std::bind(&CMarketRsp::HandleRtnDepthMarketData,this,*pDepthMarketData));
 }
 
+
 void display_quotation(size_t index)
 {
 	int i=index,y,x,pos=0,maxy,maxx;
@@ -1882,15 +1893,6 @@ void display_quotation(size_t index)
 	}
 }
 
-void order_display_quotation(const char *product_id)
-{
-	if(strcmp(vquotes[order_symbol_index].product_id,product_id)!=0)
-		return;
-	order_redraw();
-	if(order_corner_win){
-		order_corner_redraw();
-	}
-}
 void display_column(int col)
 {
 	int i=0,y,x;
@@ -1904,14 +1906,13 @@ void display_column(int col)
 
 		move(y,0);
 		clrtoeol();
-		
+
 		if(mcolumns[*iter]==true)
 			mvprintw(y,x,"*%s",column_items[*iter].name);
 		else
 			mvprintw(y,x," %s",column_items[*iter].name);
 	}
 }
-	
 
 const char *apistrerror(int e)
 {
@@ -1923,6 +1924,46 @@ const char *apistrerror(int e)
 	}
 	return apierror_none;
 }
+
+void check_status(char tradestatus[100], char quotestatus[100]) {
+	switch (TradeConnectionStatus)
+	{
+		case CONNECTION_STATUS_DISCONNECTED:
+			strcpy(tradestatus,"正在连接");
+			break;
+		case CONNECTION_STATUS_CONNECTED:
+			strcpy(tradestatus,"正在登录");
+			break;
+		case CONNECTION_STATUS_LOGINOK:
+			strcpy(tradestatus,"在线");
+			break;
+		case CONNECTION_STATUS_LOGINFAILED:
+			strcpy(tradestatus,"登录失败");
+			break;
+		default:
+			strcpy(tradestatus,"未知");
+			break;
+	}
+	switch (MarketConnectionStatus)
+	{
+		case CONNECTION_STATUS_DISCONNECTED:
+			strcpy(quotestatus,"正在连接");
+			break;
+		case CONNECTION_STATUS_CONNECTED:
+			strcpy(quotestatus,"正在登录");
+			break;
+		case CONNECTION_STATUS_LOGINOK:
+			strcpy(quotestatus,"在线");
+			break;
+		case CONNECTION_STATUS_LOGINFAILED:
+			strcpy(quotestatus,"登录失败");
+			break;
+		default:
+			strcpy(quotestatus,"未知");
+			break;
+	}
+}
+
 void display_status()
 {
 	int y,x;
@@ -1936,42 +1977,7 @@ void display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -1979,6 +1985,17 @@ void display_status()
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s",pTradeRsp->user,tradetime);
 }
+
+void order_display_quotation(const char *product_id)
+{
+	if(strcmp(vquotes[order_symbol_index].product_id,product_id)!=0)
+		return;
+	order_redraw();
+	if(order_corner_win){
+		order_corner_redraw();
+	}
+}
+
 void order_display_status()
 {
 	int y,x;
@@ -1992,42 +2009,7 @@ void order_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 
 	//int pos,max_ticks;
 	//if(order_symbol_index<0){
@@ -2141,6 +2123,7 @@ void order_display_status()
 	mvprintw(y - 1, x - 25, "%s %s", pTradeRsp->user, tradetime);
 	//mvprintw(y-1,x-25,"%s,%s",strbuyorders,strsellorders);
 }
+
 void column_settings_display_status()
 {
 	int y,x;
@@ -2154,47 +2137,13 @@ void column_settings_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->user,tradetime);
 }
+
 void symbol_display_status()
 {
 	int y,x;
@@ -2208,42 +2157,7 @@ void symbol_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -3683,42 +3597,7 @@ void orderlist_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -3726,8 +3605,6 @@ void orderlist_display_status()
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s",pTradeRsp->user,tradetime);
 }
-
-
 
 void orderlist_display_order(int index)
 {
@@ -3876,6 +3753,7 @@ void orderlist_scroll_left_1_column()
 	while(morderlist_columns[vorderlist_columns[--orderlist_curr_col_pos]]==false); //	取消所在列的反白显示
 	orderlist_redraw();
 }
+
 void orderlist_scroll_right_1_column()
 {
 	if(orderlist_curr_col_pos==sizeof(orderlist_column_items)/sizeof(column_item_t)-1)
@@ -4195,42 +4073,7 @@ void filllist_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -4238,8 +4081,6 @@ void filllist_display_status()
 	mvprintw(y - 1, 15, "%s", status_message);
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->user,tradetime);
 }
-
-
 
 void filllist_display_filledorder(int index)
 {
@@ -4594,6 +4435,7 @@ void positionlist_reset(const char *user)
 	if(working_window==WIN_POSITION)
 		positionlist_redraw();
 }
+
 void positionlist_display_title()
 {
 	int y,x,pos=0,maxy,maxx;
@@ -4701,42 +4543,7 @@ void positionlist_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -5208,42 +5015,7 @@ void acclist_display_status()
 	tt=time(NULL);
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
-	switch (TradeConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(tradestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(tradestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(tradestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(tradestatus,"登录失败");
-		break;
-	default:
-		strcpy(tradestatus,"未知");
-		break;
-	}
-	switch (MarketConnectionStatus)
-	{
-	case CONNECTION_STATUS_DISCONNECTED:
-		strcpy(quotestatus,"正在连接");
-		break;
-	case CONNECTION_STATUS_CONNECTED:
-		strcpy(quotestatus,"正在登录");
-		break;
-	case CONNECTION_STATUS_LOGINOK:
-		strcpy(quotestatus,"在线");
-		break;
-	case CONNECTION_STATUS_LOGINFAILED:
-		strcpy(quotestatus,"登录失败");
-		break;
-	default:
-		strcpy(quotestatus,"未知");
-		break;
-	}
+	check_status(tradestatus, quotestatus);
 	move(y-1,0);
 	clrtoeol();
 	
@@ -7879,7 +7651,6 @@ int goto_orderlist_window_from_log()
 	return 0;
 }
 
-
 int goto_filllist_window_from_positionlist()
 {
 	
@@ -7959,7 +7730,6 @@ int goto_positionlist_window_from_log()
 	
 	return 0;
 }
-
 
 int column_settings_move_up_1_line()
 {
@@ -9439,6 +9209,7 @@ void CMarketRsp::HandleRtnDepthMarketData(CThostFtdcDepthMarketDataField& DepthM
 		break;
 	}
 }
+
 int subscribe(size_t index)
 {
 	switch(working_window){

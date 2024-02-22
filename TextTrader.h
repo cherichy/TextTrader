@@ -15,11 +15,6 @@
 #define OPENCTP_FTDC_PC_BOND 'B'
 #define OPENCTP_FTDC_PC_FUND 'D'
 
-#define CONNECTION_STATUS_DISCONNECTED	0
-#define CONNECTION_STATUS_CONNECTED		1
-#define CONNECTION_STATUS_LOGINOK		2
-#define CONNECTION_STATUS_LOGINFAILED	3
-
 class CTradeRsp:public CThostFtdcTraderSpi
 {
 public:
@@ -120,6 +115,7 @@ public:
 	std::vector<CThostFtdcOrderField> m_mMovingOrders;
 
 };
+
 class CMarketRsp:public CThostFtdcMdSpi
 {
 public:

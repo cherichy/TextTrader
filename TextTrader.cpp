@@ -11,12 +11,12 @@
 #include <windows.h>
 #endif
 
-#include <algorithm>
 #include <cstring>
 #include <climits>
 #include <cfloat>
 #include <cmath>
 
+#include <algorithm>
 #include <map>
 #include <thread>
 #include <mutex>
@@ -139,7 +139,7 @@ char status_message[100];
 
 char input_buffer[100];
 std::vector<CThostFtdcInstrumentField> vInstruments;
-std::vector< CThostFtdcDepthMarketDataField> vDepthMarketDatas;
+std::vector<CThostFtdcDepthMarketDataField> vDepthMarketDatas;
 std::map<std::string,size_t> mInstrumentIndex;
 std::vector<bool> vSubscribed;
 std::vector<CThostFtdcOrderField> vOrders;
@@ -212,8 +212,8 @@ enum COL_ITEM {
 	COL_OPENINT			=	17,		// 今仓
 	COL_PREV_OPENINT	=	18,		// 昨仓
 	COL_AVERAGE_PRICE	=	19,		// 均价
-	COL_UpperLimitPrice	=	20,		// 涨停价
-	COL_LowerLimitPrice	=	21,		// 跌停价
+	COL_UpperLimitPrice = 20, // 涨停价
+	COL_LowerLimitPrice = 21, // 跌停价
 	COL_DATE			=	22,		// 日期
 	COL_TIME			=	23,		// 时间
 	COL_TRADE_DAY		=	24,		// 交易日
@@ -809,9 +809,8 @@ double GetSellProfitLoss(const char* InstrumentID)
 	return PL;
 }
 
-int GetPrecision(const char* InstrumentID)
-{
-	auto& Instrument = GetInstrument(InstrumentID);
+int GetPrecision(const char *InstrumentID) {
+	auto &Instrument = GetInstrument(InstrumentID);
 
 	int Precision = 0;
 	if (Instrument.PriceTick >= 1)
@@ -837,8 +836,7 @@ CThostFtdcInstrumentField& GetInstrument(const char* InstrumentID)
 	return vInstruments[mInstrumentIndex[InstrumentID]];
 }
 
-CThostFtdcDepthMarketDataField& GetDepthMarketData(const char* InstrumentID)
-{
+CThostFtdcDepthMarketDataField &GetDepthMarketData(const char *InstrumentID) {
 	return vDepthMarketDatas[mInstrumentIndex[InstrumentID]];
 }
 
@@ -931,23 +929,22 @@ void HandleTickTimeout()
 
 int goto_symbol_window_from_mainboard()
 {
-	if(vDepthMarketDatas.empty())
+	if (vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 		return 0;
 	}
-	strcpy(symbol_curr_product_id,vDepthMarketDatas[curr_pos+curr_line-1].InstrumentID);
+	strcpy(symbol_curr_product_id, vDepthMarketDatas[curr_pos + curr_line - 1].InstrumentID);
 	working_window=WIN_SYMBOL;
 	symbol_refresh_screen();
 	unsubscribe(UINT_MAX);
 	
 	return 0;
 }
-int goto_order_window_from_mainboard()
-{
-	if(vDepthMarketDatas.empty())
+int goto_order_window_from_mainboard() {
+	if (vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1041,9 +1038,8 @@ int move_backward_half_page()
 		scroll_backward_1_line();
 	return 0;
 }
-int goto_page_top()
-{
-	if(vDepthMarketDatas.empty())
+int goto_page_top() {
+	if (vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
@@ -1056,19 +1052,18 @@ int goto_page_top()
 
 	return 0;
 }
-int goto_page_bottom()
-{
-	if(vDepthMarketDatas.empty())
+int goto_page_bottom() {
+	if (vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}
-	if(curr_line==vDepthMarketDatas.size()-curr_pos)	// Already bottom
+	if (curr_line == vDepthMarketDatas.size() - curr_pos) // Already bottom
 		return 0;
-	if(vDepthMarketDatas.size()-curr_pos<max_lines){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line=vDepthMarketDatas.size()-curr_pos;
+	if (vDepthMarketDatas.size() - curr_pos < max_lines){
+		mvchgat(curr_line,0,-1,A_NORMAL, 0,NULL);
+		curr_line = vDepthMarketDatas.size()-curr_pos;
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}else{
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
@@ -1078,19 +1073,18 @@ int goto_page_bottom()
 
 	return 0;
 }
-int goto_page_middle()
-{
-	if(vDepthMarketDatas.empty())
+int goto_page_middle() {
+	if (vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		mvchgat(curr_line,0,-1,A_REVERSE, 0,NULL);
 	}
-	if(vDepthMarketDatas.size()-curr_pos==1)	// Only 1 line
+	if (vDepthMarketDatas.size() - curr_pos ==1)	// Only 1 line
 		return 0;
-	if(vDepthMarketDatas.size()-curr_pos<max_lines){
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
-		curr_line=(vDepthMarketDatas.size()-curr_pos)/2+1;
+	if (vDepthMarketDatas.size()-curr_pos<max_lines){
+		mvchgat(curr_line, 0, -1,A_NORMAL, 0,NULL);
+		curr_line = (vDepthMarketDatas.size()-curr_pos)/2+1;
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}else{
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
@@ -1101,15 +1095,14 @@ int goto_page_middle()
 	return 0;
 }
 
-int scroll_forward_1_line()
-{
+int scroll_forward_1_line() {
 	if(vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		mvchgat(curr_line, 0, -1,A_REVERSE, 0,NULL);
 	}
-	if(curr_pos==vDepthMarketDatas.size()-1){	//Already bottom
+	if (curr_pos == vDepthMarketDatas.size()-1){	//Already bottom
 		return 0;
 	}
 	move(1,0);
@@ -1122,10 +1115,10 @@ int scroll_forward_1_line()
 	}else{
 		curr_line--;
 	}
-	
+
 	unsubscribe(curr_pos);
 	curr_pos++;
-	if(vDepthMarketDatas.size()-curr_pos>=max_lines){
+	if (vDepthMarketDatas.size()-curr_pos>=max_lines){
 		display_quotation(curr_pos+max_lines-1);
 		subscribe(curr_pos+max_lines-1);
 	}
@@ -1133,6 +1126,7 @@ int scroll_forward_1_line()
 
 	return 0;
 }
+
 int scroll_backward_1_line()
 {
 	if(vDepthMarketDatas.empty())
@@ -1170,10 +1164,10 @@ int move_forward_1_line()
 		return 0;
 	if(curr_line==0){	// first select
 		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		mvchgat(curr_line,0, -1,A_REVERSE, 0,NULL);
 		return 0;
 	}
-	if(curr_line==vDepthMarketDatas.size()-curr_pos)	// Already bottom
+	if (curr_line == vDepthMarketDatas.size()-curr_pos)	// Already bottom
 		return 0;
 	if(curr_line!=max_lines){
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
@@ -1198,11 +1192,11 @@ int scroll_left_1_column()
 {
 	if(curr_col_pos==2)
 		return 0;
-	while(mcolumns[vcolumns[--curr_col_pos]]==false); //	取消所在列的反白显示
+	while(mcolumns[vcolumns[--curr_col_pos]] == false); //	取消所在列的反白显示
 	display_title();
-	if(vDepthMarketDatas.empty())
+	if (vDepthMarketDatas.empty())
 		return 0;
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++)
+	for (size_t i = curr_pos; i < vDepthMarketDatas.size() && i<curr_pos+max_lines;i++)
 		display_quotation(i);
 	
 	return 0;
@@ -1211,11 +1205,11 @@ int scroll_right_1_column()
 {
 	if(curr_col_pos==sizeof(column_items)/sizeof(column_item_t)-1)
 		return 0;
-	while(mcolumns[vcolumns[++curr_col_pos]]==false); //	取消所在列的反白显示
+	while(mcolumns[vcolumns[++curr_col_pos]] == false); //	取消所在列的反白显示
 	display_title();
-	if(vDepthMarketDatas.empty())
+	if (vDepthMarketDatas.empty())
 		return 0;
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++)
+	for (size_t i = curr_pos; i < vDepthMarketDatas.size() && i<curr_pos+max_lines;i++)
 		display_quotation(i);
 
 	return 0;
@@ -1246,7 +1240,7 @@ int move_backward_1_line()
 		curr_pos--;
 		display_quotation(curr_pos);
 		subscribe(curr_pos);
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		mvchgat(curr_line,0, -1,A_REVERSE, 0,NULL);
 	}
 
 	return 0;
@@ -1265,10 +1259,10 @@ int goto_file_top()
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
 		curr_line=1;
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
+	} else {
+		mvchgat(curr_line, 0, -1,A_NORMAL, 0,NULL);
 		size_t n;
-		n=vDepthMarketDatas.size()<max_lines?vDepthMarketDatas.size():max_lines;
+		n = vDepthMarketDatas.size()<max_lines?vDepthMarketDatas.size():max_lines;
 		curr_pos=0;
 		curr_line=1;
 		unsubscribe(UINT_MAX);
@@ -1278,7 +1272,7 @@ int goto_file_top()
 		}
 // 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 	}
-	
+
 	return 0;
 }
 int goto_file_bottom()
@@ -1286,16 +1280,16 @@ int goto_file_bottom()
 	if(vDepthMarketDatas.empty())
 		return 0;
 	if(curr_line==0){	// first select
-		curr_line=1;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		curr_line = 1;
+		mvchgat(curr_line, 0, -1,A_REVERSE, 0,NULL);
 	}
-	if(curr_line==vDepthMarketDatas.size()-curr_pos)	// Already bottom
+	if(curr_line == vDepthMarketDatas.size() - curr_pos) // Already bottom
 		return 0;
-	if(vDepthMarketDatas.size()-curr_pos<=max_lines){
+	if(vDepthMarketDatas.size() - curr_pos <= max_lines) {
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
 		curr_line=vDepthMarketDatas.size()-curr_pos;
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
-	}else{
+		mvchgat(curr_line, 0, -1,A_REVERSE, 0,NULL);
+	} else {
 		mvchgat(curr_line,0,-1,A_NORMAL,0,NULL);
 		curr_pos=vDepthMarketDatas.size()-max_lines;
 		curr_line=max_lines;
@@ -1608,12 +1602,12 @@ void display_quotation(size_t index)
 		return;
 	getmaxyx(stdscr,maxy,maxx);
 	
-	if(i<curr_pos || i>curr_pos+max_lines-1)
+	if(i<curr_pos || i > curr_pos + max_lines - 1)
 		return;
-	y=i-curr_pos+1;
-	x=0;
+	y = i - curr_pos + 1;
+	x = 0;
 
-	move(y,0);
+	move(y, 0);
 	clrtoeol();
 
 	int precision = GetPrecision(vDepthMarketDatas[i].InstrumentID);
@@ -1627,134 +1621,140 @@ void display_quotation(size_t index)
 			continue;
 		if(*iter!=COL_SYMBOL && *iter!=COL_SYMBOL_NAME && pos<curr_col_pos)
 			continue;
-		if(maxx-x<column_items[*iter].width)
+		if (maxx - x < column_items[*iter].width)
 			break;
-		switch(*iter){
-		case COL_SYMBOL:		//InstrumentID
+		switch (*iter) {
+			case COL_SYMBOL: //InstrumentID
 			mvprintw(y,x,"%-*s",column_items[COL_SYMBOL].width,vDepthMarketDatas[i].InstrumentID);
-			x+=column_items[COL_SYMBOL].width;
+			x += column_items[COL_SYMBOL].width;
 			break;
-		case COL_SYMBOL_NAME:		//Instrument.InstrumentName
+		case COL_SYMBOL_NAME: //Instrument.InstrumentName
 			mvprintw(y,x,"%-*s",column_items[COL_SYMBOL_NAME].width,STR(vInstruments[i].InstrumentName).c_str());
-			x+=column_items[COL_SYMBOL_NAME].width+1;
+			x += column_items[COL_SYMBOL_NAME].width+1;
 			break;
 		case COL_CLOSE:
-			if(vDepthMarketDatas[i].LastPrice ==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_CLOSE].width,'-');
+			if (vDepthMarketDatas[i].LastPrice == DBL_MAX)
+				mvprintw(y, x, "%*c", column_items[COL_CLOSE].width, '-');
 			else
-			mvprintw(y,x,"%*.*f",column_items[COL_CLOSE].width,precision,vDepthMarketDatas[i].LastPrice);
-			x+=column_items[COL_CLOSE].width+1;
+			mvprintw(y,x,"%*.*f",column_items[COL_CLOSE].width, precision, vDepthMarketDatas[i].LastPrice);
+			x += column_items[COL_CLOSE].width + 1;
 			break;
 		case COL_PERCENT:
-			if(PreClosePrice ==DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice==DBL_MAX || fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
-				mvprintw(y,x,"%*c",column_items[COL_PERCENT].width,'-');
+			if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice==DBL_MAX ||
+			    fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
+				mvprintw(y, x, "%*c", column_items[COL_PERCENT].width, '-');
 			else
-				mvprintw(y,x,"%*.1f%%",column_items[COL_PERCENT].width-1,(vDepthMarketDatas[i].LastPrice- PreClosePrice)/ PreClosePrice *100.0);
-			x+=column_items[COL_PERCENT].width+1;
+				mvprintw(y,x,"%*.1f%%",column_items[COL_PERCENT].width-1,(vDepthMarketDatas[i].LastPrice -
+				                                                          PreClosePrice) / PreClosePrice * 100.0);
+			x += column_items[COL_PERCENT].width + 1;
 			break;
 		case COL_ADVANCE:
-			if(PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice == DBL_MAX || fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
-				mvprintw(y,x,"%*c",column_items[COL_ADVANCE].width,'-');
+			if (PreClosePrice == DBL_MAX || fabs(PreClosePrice) < 0.000001 || vDepthMarketDatas[i].LastPrice == DBL_MAX
+			    || fabs(vDepthMarketDatas[i].LastPrice) < 0.000001)
+				mvprintw(y,x,"%*c",column_items[COL_ADVANCE].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_ADVANCE].width-1,precision,vDepthMarketDatas[i].LastPrice- PreClosePrice);
-			x+=column_items[COL_ADVANCE].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_ADVANCE].width - 1,precision,vDepthMarketDatas[i].LastPrice- PreClosePrice);
+			x += column_items[COL_ADVANCE].width + 1;
 			break;
 		case COL_VOLUME:
-			mvprintw(y,x,"%*d",column_items[COL_VOLUME].width,vDepthMarketDatas[i].Volume);
-			x+=column_items[COL_VOLUME].width+1;
+			mvprintw(y,x,"%*d",column_items[COL_VOLUME].width, vDepthMarketDatas[i].Volume);
+			x += column_items[COL_VOLUME].width + 1;
 			break;
 		case COL_BID_PRICE:
 			if(vDepthMarketDatas[i].BidPrice1==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_BID_PRICE].width,'-');
+				mvprintw(y,x,"%*c", column_items[COL_BID_PRICE].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_BID_PRICE].width,precision,vDepthMarketDatas[i].BidPrice1);
-			x+=column_items[COL_BID_PRICE].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_BID_PRICE].width,precision,vDepthMarketDatas[i].BidPrice1);
+			x+=column_items[COL_BID_PRICE].width + 1;
 			break;
 		case COL_BID_VOLUME:
-			mvprintw(y,x,"%*d",column_items[COL_BID_VOLUME].width,vDepthMarketDatas[i].BidVolume1);
-			x+=column_items[COL_BID_VOLUME].width+1;
+			mvprintw(y,x,"%*d",column_items[COL_BID_VOLUME].width, vDepthMarketDatas[i].BidVolume1);
+			x += column_items[COL_BID_VOLUME].width + 1;
 			break;
 		case COL_ASK_PRICE:
 			if(vDepthMarketDatas[i].AskPrice1==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_ASK_PRICE].width,'-');
+				mvprintw(y, x, "%*c", column_items[COL_ASK_PRICE].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_ASK_PRICE].width,precision,vDepthMarketDatas[i].AskPrice1);
-			x+=column_items[COL_ASK_PRICE].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_ASK_PRICE].width,precision,vDepthMarketDatas[i].AskPrice1);
+			x += column_items[COL_ASK_PRICE].width + 1;
 			break;
 		case COL_ASK_VOLUME:
-			mvprintw(y,x,"%*d",column_items[COL_ASK_VOLUME].width,vDepthMarketDatas[i].AskVolume1);
-			x+=column_items[COL_ASK_VOLUME].width+1;
+			mvprintw(y, x, "%*d", column_items[COL_ASK_VOLUME].width, vDepthMarketDatas[i].AskVolume1);
+			x += column_items[COL_ASK_VOLUME].width + 1;
 			break;
 		case COL_UpperLimitPrice:
 			if (vDepthMarketDatas[i].UpperLimitPrice == DBL_MAX)
 				mvprintw(y, x, "%*c", column_items[COL_UpperLimitPrice].width, '-');
 			else
-				mvprintw(y, x, "%*.*f", column_items[COL_UpperLimitPrice].width, precision, vDepthMarketDatas[i].UpperLimitPrice);
+				mvprintw(y, x, "%*.*f", column_items[COL_UpperLimitPrice].width, precision, vDepthMarketDatas[i].
+				         UpperLimitPrice);
 			x += column_items[COL_UpperLimitPrice].width + 1;
 			break;
 		case COL_LowerLimitPrice:
 			if (vDepthMarketDatas[i].LowerLimitPrice == DBL_MAX)
 				mvprintw(y, x, "%*c", column_items[COL_LowerLimitPrice].width, '-');
 			else
-				mvprintw(y, x, "%*.*f", column_items[COL_LowerLimitPrice].width, precision, vDepthMarketDatas[i].LowerLimitPrice);
+				mvprintw(y, x, "%*.*f", column_items[COL_LowerLimitPrice].width, precision,
+				         vDepthMarketDatas[i].LowerLimitPrice);
 			x += column_items[COL_LowerLimitPrice].width + 1;
 			break;
 		case COL_OPEN:
-			if(vDepthMarketDatas[i].OpenPrice==DBL_MAX)
+			if (vDepthMarketDatas[i].OpenPrice == DBL_MAX)
 				mvprintw(y,x,"%*c",column_items[COL_OPEN].width,'-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_OPEN].width,precision,vDepthMarketDatas[i].OpenPrice);
-			x+=column_items[COL_OPEN].width+1;
+				mvprintw(y,x, "%*.*f", column_items[COL_OPEN].width, precision, vDepthMarketDatas[i].OpenPrice);
+			x += column_items[COL_OPEN].width + 1;
 			break;
 		case COL_PREV_SETTLEMENT:
-			if(vDepthMarketDatas[i].PreSettlementPrice ==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_PREV_SETTLEMENT].width,'-');
+			if(vDepthMarketDatas[i].PreSettlementPrice == DBL_MAX)
+				mvprintw(y, x, "%*c", column_items[COL_PREV_SETTLEMENT].width,'-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_PREV_SETTLEMENT].width,precision,vDepthMarketDatas[i].PreSettlementPrice);
-			x+=column_items[COL_PREV_SETTLEMENT].width+1;
+				mvprintw(y,x,"%*.*f", column_items[COL_PREV_SETTLEMENT].width, precision,
+				         vDepthMarketDatas[i].PreSettlementPrice);
+			x += column_items[COL_PREV_SETTLEMENT].width+1;
 			break;
 		case COL_AVERAGE_PRICE:
-			if(vDepthMarketDatas[i].AveragePrice==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_AVERAGE_PRICE].width,'-');
+			if (vDepthMarketDatas[i].AveragePrice == DBL_MAX)
+				mvprintw(y,x,"%*c",column_items[COL_AVERAGE_PRICE].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_AVERAGE_PRICE].width,precision,vDepthMarketDatas[i].AveragePrice);
-			x+=column_items[COL_AVERAGE_PRICE].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_AVERAGE_PRICE].width, precision, vDepthMarketDatas[i].AveragePrice);
+			x+=column_items[COL_AVERAGE_PRICE].width + 1;
 			break;
 		case COL_HIGH:
 			if(vDepthMarketDatas[i].HighestPrice ==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_HIGH].width,'-');
+				mvprintw(y, x, "%*c", column_items[COL_HIGH].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_HIGH].width,precision,vDepthMarketDatas[i].HighestPrice);
-			x+=column_items[COL_HIGH].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_HIGH].width,precision,vDepthMarketDatas[i].HighestPrice);
+			x+=column_items[COL_HIGH].width + 1;
 			break;
 		case COL_LOW:
 			if(vDepthMarketDatas[i].LowestPrice==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_LOW].width,'-');
+				mvprintw(y,x, "%*c", column_items[COL_LOW].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_LOW].width,precision,vDepthMarketDatas[i].LowestPrice);
-			x+=column_items[COL_LOW].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_LOW].width, precision, vDepthMarketDatas[i].LowestPrice);
+			x+=column_items[COL_LOW].width + 1;
 			break;
 		case COL_SETTLEMENT:
-			if(vDepthMarketDatas[i].SettlementPrice==DBL_MAX)
-				mvprintw(y,x,"%*c",column_items[COL_SETTLEMENT].width,'-');
+			if (vDepthMarketDatas[i].SettlementPrice==DBL_MAX)
+				mvprintw(y,x,"%*c",column_items[COL_SETTLEMENT].width, '-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_SETTLEMENT].width,precision,vDepthMarketDatas[i].SettlementPrice);
-			x+=column_items[COL_SETTLEMENT].width+1;
+				mvprintw(y, x, "%*.*f", column_items[COL_SETTLEMENT].width, precision,vDepthMarketDatas[i].SettlementPrice);
+			x+=column_items[COL_SETTLEMENT].width + 1;
 			break;
 		case COL_PREV_CLOSE:
-			if(vDepthMarketDatas[i].PreClosePrice==DBL_MAX)
+			if (vDepthMarketDatas[i].PreClosePrice==DBL_MAX)
 				mvprintw(y,x,"%*c",column_items[COL_PREV_CLOSE].width,'-');
 			else
-				mvprintw(y,x,"%*.*f",column_items[COL_PREV_CLOSE].width,precision,vDepthMarketDatas[i].PreClosePrice);
+				mvprintw(y, x, "%*.*f", column_items[COL_PREV_CLOSE].width, precision, vDepthMarketDatas[i].PreClosePrice);
 			x+=column_items[COL_PREV_CLOSE].width+1;
 			break;
 		case COL_OPENINT:
-			mvprintw(y,x,"%*d",column_items[COL_OPENINT].width,vDepthMarketDatas[i].OpenInterest);
-			x+=column_items[COL_OPENINT].width+1;
+			mvprintw(y, x, "%*d", column_items[COL_OPENINT].width, vDepthMarketDatas[i].OpenInterest);
+			x+=column_items[COL_OPENINT].width + 1;
 			break;
 		case COL_PREV_OPENINT:
-			mvprintw(y,x,"%*d",column_items[COL_PREV_OPENINT].width,vDepthMarketDatas[i].PreOpenInterest);
-			x+=column_items[COL_PREV_OPENINT].width+1;
+			mvprintw(y, x, "%*d", column_items[COL_PREV_OPENINT].width,vDepthMarketDatas[i].PreOpenInterest);
+			x+=column_items[COL_PREV_OPENINT].width + 1;
 			break;
 		case COL_DATE:
 			mvprintw(y, x, "%-*s", column_items[COL_DATE].width, vDepthMarketDatas[i].ActionDay);
@@ -1849,14 +1849,13 @@ void check_status(std::string &tradestatus, std::string &quotestatus) {
 			quotestatus="登录失败";
 			break;
 		default:
-			quotestatus="未知";
+			quotestatus = "未知";
 			break;
 	}
 }
 
-void display_status()
-{
-	int y,x;
+void display_status() {
+	int y, x;
 	std::string tradestatus,quotestatus;
 
 	if(working_window!=WIN_MAINBOARD)
@@ -1930,7 +1929,7 @@ void symbol_display_status()
 	t=localtime(&tt);
 	sprintf(tradetime,"%02d:%02d:%02d",t->tm_hour,t->tm_min,t->tm_sec);
 	check_status(tradestatus, quotestatus);
-	move(y-1,0);
+	move(y - 1, 0);
 	clrtoeol();
 	
 	mvprintw(y-1,x-25,"%s %s", pTradeRsp->UserID,tradetime);
@@ -1957,7 +1956,7 @@ void init_screen()
 	for(size_t i=0;i<vDepthMarketDatas.size();i++)
 		display_quotation(i);
 	display_status();
-	if(curr_line!=0)
+	if (curr_line!=0)
 		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
 }
 
@@ -1983,13 +1982,13 @@ void refresh_screen()
 		display_quotation(i);
 	display_status();
 	if(curr_line!=0)
-		mvchgat(curr_line,0,-1,A_REVERSE,0,NULL);
+		mvchgat(curr_line,0,-1,A_REVERSE, 0,NULL);
 }
-void order_refresh_screen()
-{
-	int y,x;
-	
-	if(working_window!=WIN_ORDER)
+
+void order_refresh_screen() {
+	int y, x;
+
+	if (working_window != WIN_ORDER)
 		return;
 	endwin();
 	initscr();
@@ -2000,156 +1999,160 @@ void order_refresh_screen()
 	curs_set(0);
 	scrollok(stdscr,TRUE);
 	clear();
-	getmaxyx(stdscr,y,x);
-	order_max_lines=y-3;
-	order_is_moving=0;
+	getmaxyx(stdscr, y, x);
+	order_max_lines = y - 3;
+	order_is_moving = 0;
 	order_redraw();
 }
 void order_goto_file_top()
 {
 	if(order_symbol_index<0)
 		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
-	order_page_top_price=UpperLimitPrice;
-	order_curr_price=UpperLimitPrice;
-	
+	order_page_top_price = UpperLimitPrice;
+	order_curr_price = UpperLimitPrice;
+
 	order_redraw();
 }
-void order_goto_file_bottom()
-{
-	if(order_symbol_index<0)
+
+void order_goto_file_bottom() {
+	if (order_symbol_index < 0)
 		return;
-	
+
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
+	double error_amount = 1.0 / pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
 	
 	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
 		return;
 	order_curr_price=LowerLimitPrice;
 	if(order_page_top_price==DBL_MAX){
 		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price <= LowerLimitPrice -
+	           error_amount) {
+		order_page_top_price = UpperLimitPrice;
 	}
-	if(order_page_top_price>=order_curr_price+PriceTick*(order_max_lines-1)+error_amount)
-			order_page_top_price=order_curr_price+PriceTick*(order_max_lines-1);
-	
+	if (order_page_top_price >= order_curr_price + PriceTick * (order_max_lines - 1) + error_amount)
+		order_page_top_price = order_curr_price + PriceTick * (order_max_lines - 1);
+
 	order_redraw();
 }
 
 void order_goto_page_top()
 {
-	if(order_symbol_index<0)
+	if(order_symbol_index < 0)
 		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
-	
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
+
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
-	if(order_page_top_price==DBL_MAX){
-		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
+	if (order_page_top_price == DBL_MAX) {
+		order_page_top_price = UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price <= LowerLimitPrice -
+	           error_amount) {
+		order_page_top_price = UpperLimitPrice;
 	}
 	order_curr_price=order_page_top_price;
 	order_redraw();
 }
-void order_goto_page_bottom()
-{
-	if(order_symbol_index<0)
+
+void order_goto_page_bottom() {
+	if (order_symbol_index < 0)
 		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
+	double error_amount = 1.0 / pow(10.0, GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
 	
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
-	if(order_page_top_price==DBL_MAX){
-		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
+	if (order_page_top_price == DBL_MAX) {
+		order_page_top_price = UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price <= LowerLimitPrice -
+	           error_amount) {
+		order_page_top_price = UpperLimitPrice;
 	}
-	order_curr_price=order_page_top_price-PriceTick*(order_max_lines-1);
-	if(order_curr_price<=LowerLimitPrice-error_amount)
-		order_curr_price=LowerLimitPrice;
-	order_redraw();
-}
-void order_goto_page_middle()
-{
-	if(order_symbol_index<0)
-		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
-	
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
-		return;
-	if(order_page_top_price==DBL_MAX){
-		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
-	}
-	if(order_page_top_price-PriceTick*(order_max_lines-1)<=LowerLimitPrice-error_amount)
-		order_curr_price=(order_page_top_price+LowerLimitPrice)/2;
-	else
-		order_curr_price=order_page_top_price-PriceTick*order_max_lines/2;
+	order_curr_price = order_page_top_price - PriceTick * (order_max_lines - 1);
+	if (order_curr_price<=LowerLimitPrice-error_amount)
+		order_curr_price = LowerLimitPrice;
 	order_redraw();
 }
 
-void order_scroll_forward_1_line()
-{
-	if(order_symbol_index<0)
+void order_goto_page_middle() {
+	if (order_symbol_index < 0)
 		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
 	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
+	
+	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+		return;
+	if (order_page_top_price == DBL_MAX) {
+		order_page_top_price = UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price <= LowerLimitPrice -
+	           error_amount) {
+		order_page_top_price = UpperLimitPrice;
+	}
+	if (order_page_top_price - PriceTick * (order_max_lines - 1) <= LowerLimitPrice - error_amount)
+		order_curr_price=(order_page_top_price+LowerLimitPrice) / 2;
+	else
+		order_curr_price = order_page_top_price - PriceTick * order_max_lines / 2;
+	order_redraw();
+}
+
+void order_scroll_forward_1_line() {
+	if (order_symbol_index < 0)
+		return;
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
+	double error_amount = 1.0 / pow(10.0, GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
 	
 	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
 		return;
 	if(order_page_top_price==DBL_MAX){
 		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
-	}else{
-		if(order_page_top_price>=LowerLimitPrice+error_amount)
-			order_page_top_price-=PriceTick;
+	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price <= LowerLimitPrice -
+	         error_amount) {
+		order_page_top_price = UpperLimitPrice;
+	} else {
+		if (order_page_top_price >= LowerLimitPrice + error_amount)
+			order_page_top_price -= PriceTick;
 	}
-	if(order_curr_price==DBL_MAX){
-		order_curr_price=UpperLimitPrice;
-	}else if(order_curr_price>=UpperLimitPrice+error_amount || order_curr_price<=LowerLimitPrice-error_amount){
-		order_curr_price=UpperLimitPrice;
-	}else{
-		if(order_curr_price>=order_page_top_price+error_amount)
-			order_curr_price=order_page_top_price;
+	if (order_curr_price == DBL_MAX) {
+		order_curr_price = UpperLimitPrice;
+	} else if (order_curr_price >= UpperLimitPrice + error_amount || order_curr_price<=LowerLimitPrice-error_amount){
+		order_curr_price = UpperLimitPrice;
+	} else {
+		if (order_curr_price >= order_page_top_price + error_amount)
+			order_curr_price = order_page_top_price;
 	}
-	
+
 	order_redraw();
 }
-void order_scroll_backward_1_line()
-{
-	if(order_symbol_index<0)
+
+void order_scroll_backward_1_line() {
+	if (order_symbol_index < 0)
 		return;
-	
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
 	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
+	double error_amount = 1.0 / pow(10.0, GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
 	
 	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
 		return;
@@ -2167,37 +2170,37 @@ void order_scroll_backward_1_line()
 	}else if(order_curr_price>=UpperLimitPrice+error_amount || order_curr_price<=LowerLimitPrice-error_amount){
 		order_curr_price=UpperLimitPrice;
 	}else{
-		if(order_curr_price<=order_page_top_price-(order_max_lines-1)*PriceTick-error_amount)
-			order_curr_price=order_page_top_price-(order_max_lines-1)*PriceTick;
+		if(order_curr_price<=order_page_top_price-(order_max_lines-1)* PriceTick - error_amount)
+			order_curr_price = order_page_top_price - (order_max_lines - 1) * PriceTick;
 	}
 	order_redraw();
 }
-int order_move_forward_1_page()
-{
+
+int order_move_forward_1_page() {
 	int i;
-	for(i=0;i<order_max_lines;i++)
+	for (i = 0; i < order_max_lines; i++)
 		order_scroll_forward_1_line();
 	return 0;
 }
-int order_move_backward_1_page()
-{
+
+int order_move_backward_1_page() {
 	int i;
-	for(i=0;i<order_max_lines;i++)
+	for (i = 0; i < order_max_lines; i++)
 		order_scroll_backward_1_line();
-	
+
 	return 0;
 }
-int order_move_forward_half_page()
-{
+
+int order_move_forward_half_page() {
 	int i;
-	for(i=0;i<order_max_lines/2;i++)
+	for (i = 0; i < order_max_lines / 2; i++)
 		order_scroll_forward_1_line();
 	return 0;
 }
-int order_move_backward_half_page()
-{
+
+int order_move_backward_half_page() {
 	int i;
-	for(i=0;i<order_max_lines/2;i++)
+	for (i = 0; i < order_max_lines / 2;i++)
 		order_scroll_backward_1_line();
 	return 0;
 }
@@ -2209,27 +2212,27 @@ void order_centralize_current_price()
 	
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
 	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double close_price=vDepthMarketDatas[order_symbol_index].LastPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
+	double close_price = vDepthMarketDatas[order_symbol_index].LastPrice;
 	double prev_close = vDepthMarketDatas[order_symbol_index].PreClosePrice;
-	double prev_settle=vDepthMarketDatas[order_symbol_index].PreSettlementPrice;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
-	
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	double prev_settle = vDepthMarketDatas[order_symbol_index].PreSettlementPrice;
+	double error_amount = 1.0 / pow(10.0, GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
+
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
 	order_curr_price = close_price;
 
-	if(order_curr_price == DBL_MAX){
+	if (order_curr_price == DBL_MAX) {
 		// centralize to prev_settle
-		order_curr_price= prev_close;
+		order_curr_price = prev_close;
 	}
 	if (order_curr_price == DBL_MAX) {
 		// centralize to prev_settle
 		order_curr_price = prev_settle;
 	}
 
-	if((order_page_top_price=order_curr_price+order_max_lines/2*PriceTick)>=UpperLimitPrice+error_amount)
-		order_page_top_price=UpperLimitPrice;
+	if ((order_page_top_price = order_curr_price + order_max_lines / 2 * PriceTick) >= UpperLimitPrice + error_amount)
+		order_page_top_price = UpperLimitPrice;
 	order_redraw();
 }
 int order_refresh_quote()
@@ -2238,89 +2241,91 @@ int order_refresh_quote()
 	
 	i=order_symbol_index;
 	int precision= GetPrecision(vDepthMarketDatas[i].InstrumentID);
-	double UpperLimitPrice=vDepthMarketDatas[i].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[i].LowerLimitPrice;
+	double UpperLimitPrice = vDepthMarketDatas[i].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[i].LowerLimitPrice;
 	double PriceTick=vInstruments[i].PriceTick;
-	double buy_price=vDepthMarketDatas[i].BidPrice1;
+	double buy_price = vDepthMarketDatas[i].BidPrice1;
 	int buy_quantity=vDepthMarketDatas[i].BidVolume1;
-	double sell_price=vDepthMarketDatas[i].AskPrice1;
-	int sell_quantity=vDepthMarketDatas[i].AskVolume1;
+	double sell_price = vDepthMarketDatas[i].AskPrice1;
+	int sell_quantity = vDepthMarketDatas[i].AskVolume1;
 	double close_price=vDepthMarketDatas[i].LastPrice;
 	int max_ticks=(UpperLimitPrice-LowerLimitPrice)/PriceTick+1+0.5;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
-	
-	if(max_ticks==1)
+	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
+
+	if (max_ticks == 1)
 		return 0;
 	if(order_curr_line!=0)
 		mvchgat(order_curr_line+1,0,-1,A_NORMAL,0,NULL);
 	for(i=0;i<order_max_lines;i++){
-		if(UpperLimitPrice-PriceTick*(i+order_curr_pos)<UpperLimitPrice+error_amount && UpperLimitPrice-PriceTick*(i+order_curr_pos)>LowerLimitPrice-error_amount){
-			move(i+2,0);
+		if(UpperLimitPrice-PriceTick*(i+order_curr_pos)<UpperLimitPrice+error_amount && UpperLimitPrice-PriceTick * (
+			   i + order_curr_pos) > LowerLimitPrice - error_amount) {
+			move(i + 2, 0);
 			clrtoeol();
-			mvprintw(i+2,22,"%10.*f",precision,UpperLimitPrice-PriceTick*(i+order_curr_pos));
+			mvprintw(i+2,22,"%10.*f", precision, UpperLimitPrice - PriceTick * (i + order_curr_pos));
 		}
 	}
-	
+
 	// Ask Volume
-	if(sell_quantity>0){
-		order_curr_pos_ask=(UpperLimitPrice-sell_price)/PriceTick+0.5;
-		if(order_curr_pos_ask>=order_curr_pos && order_curr_pos_ask<=order_curr_pos+order_max_lines-1)
-			mvprintw(order_curr_pos_ask-order_curr_pos+2,11,"%10d",sell_quantity);
+	if (sell_quantity > 0) {
+		order_curr_pos_ask = (UpperLimitPrice - sell_price) / PriceTick + 0.5;
+		if (order_curr_pos_ask >= order_curr_pos && order_curr_pos_ask <= order_curr_pos + order_max_lines-1)
+			mvprintw(order_curr_pos_ask-order_curr_pos+2, 11, "%10d", sell_quantity);
 	}
-	
+
 	// Bid Volume
-	if(buy_quantity>0){
-		order_curr_pos_bid=(UpperLimitPrice-buy_price)/PriceTick+0.5;
-		if(order_curr_pos_bid>=order_curr_pos && order_curr_pos_bid<=order_curr_pos+order_max_lines-1)
-			mvprintw(order_curr_pos_bid-order_curr_pos+2,33,"%10d",buy_quantity);
+	if (buy_quantity > 0) {
+		order_curr_pos_bid = (UpperLimitPrice - buy_price) / PriceTick + 0.5;
+		if (order_curr_pos_bid >= order_curr_pos && order_curr_pos_bid <= order_curr_pos + order_max_lines - 1)
+			mvprintw(order_curr_pos_bid - order_curr_pos + 2, 33, "%10d", buy_quantity);
 	}
-	mvchgat(order_curr_line+1,0,-1,A_REVERSE,0,NULL);
-	if((UpperLimitPrice-close_price)/PriceTick-order_curr_pos+1+0.5==order_curr_line)
-		mvchgat(order_curr_line+1,22,11,A_NORMAL,0,NULL);
-	else if((UpperLimitPrice-close_price)/PriceTick-order_curr_pos+1+0.5>=1 && (UpperLimitPrice-close_price)/PriceTick-order_curr_pos+1+0.5<=order_max_lines)
-		mvchgat((UpperLimitPrice-close_price)/PriceTick-order_curr_pos+1+1+0.5,22,11,A_REVERSE,0,NULL);
-	
+	mvchgat(order_curr_line + 1, 0, -1,A_REVERSE, 0,NULL);
+	if ((UpperLimitPrice - close_price) / PriceTick - order_curr_pos + 1 + 0.5 == order_curr_line)
+		mvchgat(order_curr_line + 1, 22, 11,A_NORMAL, 0,NULL);
+	else if ((UpperLimitPrice - close_price) / PriceTick - order_curr_pos + 1 + 0.5 >= 1 && (
+		         UpperLimitPrice - close_price) / PriceTick - order_curr_pos + 1 + 0.5 <= order_max_lines)
+		mvchgat((UpperLimitPrice-close_price)/PriceTick-order_curr_pos + 1 + 1 + 0.5, 22, 11,A_REVERSE, 0,NULL);
+
 	return 0;
 }
 
-int order_goto_price(double price)
-{
+int order_goto_price(double price) {
 	int i;
-	
-	i=order_symbol_index;
-	int precision=GetPrecision(vDepthMarketDatas[i].InstrumentID);
-	double UpperLimitPrice=vDepthMarketDatas[i].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[i].LowerLimitPrice;
-	double PriceTick= vInstruments[i].PriceTick;
+
+	i = order_symbol_index;
+	int precision = GetPrecision(vDepthMarketDatas[i].InstrumentID);
+	double UpperLimitPrice = vDepthMarketDatas[i].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[i].LowerLimitPrice;
+	double PriceTick = vInstruments[i].PriceTick;
 	double buy_price = vDepthMarketDatas[i].BidPrice1;
 	int buy_quantity = vDepthMarketDatas[i].BidVolume1;
 	double sell_price = vDepthMarketDatas[i].AskPrice1;
 	int sell_quantity = vDepthMarketDatas[i].AskVolume1;
-	double close_price=vDepthMarketDatas[i].LastPrice;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
-	int max_ticks=(UpperLimitPrice-LowerLimitPrice)/PriceTick+1+0.5;
+	double close_price = vDepthMarketDatas[i].LastPrice;
+	double error_amount = 1.0 / pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
+	int max_ticks = (UpperLimitPrice - LowerLimitPrice) / PriceTick + 1 + 0.5;
 	double curr_price;
 
-	if(max_ticks==1)
+	if (max_ticks == 1)
 		return 0;
-	if(order_curr_line!=0){
-		mvchgat(order_curr_line+1,0,-1,A_NORMAL,0,NULL);
-		curr_price=UpperLimitPrice-(order_curr_pos+order_curr_line-1)*PriceTick;
+	if (order_curr_line != 0) {
+		mvchgat(order_curr_line + 1, 0, -1,A_NORMAL, 0,NULL);
+		curr_price = UpperLimitPrice - (order_curr_pos+order_curr_line-1)*PriceTick;
 	}
-	if((UpperLimitPrice-price)/PriceTick+0.5<order_curr_pos){
-		order_curr_pos=(UpperLimitPrice-price)/PriceTick+0.5;
-		for(i=0;i<order_max_lines;i++){
-			if(UpperLimitPrice-PriceTick*(i+order_curr_pos)<UpperLimitPrice+error_amount && UpperLimitPrice-PriceTick*(i+order_curr_pos)>LowerLimitPrice-error_amount){
-				move(i+2,0);
+	if((UpperLimitPrice-price) / PriceTick + 0.5 < order_curr_pos) {
+		order_curr_pos = (UpperLimitPrice - price) / PriceTick + 0.5;
+		for (i = 0; i < order_max_lines; i++) {
+			if (UpperLimitPrice - PriceTick * (i + order_curr_pos) < UpperLimitPrice + error_amount && UpperLimitPrice -
+			    PriceTick * (i + order_curr_pos) > LowerLimitPrice - error_amount) {
+				move(i + 2, 0);
 				clrtoeol();
-				mvprintw(i+2,22,"%10.*f",precision,UpperLimitPrice-PriceTick*(i+order_curr_pos));
+				mvprintw(i+2,22,"%10.*f",precision, UpperLimitPrice - PriceTick * (i + order_curr_pos));
 			}
 		}
 		order_curr_line=1;
 	}else if((UpperLimitPrice-price)/PriceTick+0.5>order_curr_pos+order_max_lines-1){
 		order_curr_pos=(UpperLimitPrice-price)/PriceTick+0.5;
 		for(i=0;i<order_max_lines;i++){
-			if(UpperLimitPrice-PriceTick*(i+order_curr_pos)<UpperLimitPrice+error_amount && UpperLimitPrice-PriceTick*(i+order_curr_pos)>LowerLimitPrice-error_amount){
+			if(UpperLimitPrice - PriceTick * (i + order_curr_pos) < UpperLimitPrice + error_amount && UpperLimitPrice-PriceTick*(i+order_curr_pos)>LowerLimitPrice-error_amount){
 				move(i+2,0);
 				clrtoeol();
 				mvprintw(i+2,22,"%10.*f",precision,UpperLimitPrice-PriceTick*(i+order_curr_pos));
@@ -2335,26 +2340,26 @@ int order_goto_price(double price)
 				mvprintw(i+2,22,"%10.*f",precision,UpperLimitPrice-PriceTick*(i+order_curr_pos));
 			}
 		}
-		order_curr_line=(UpperLimitPrice-price)/PriceTick-order_curr_pos+1+0.5;
+		order_curr_line=(UpperLimitPrice-price)/PriceTick- order_curr_pos + 1 + 0.5;
 	}
-	
+
 	// Ask Volume
-	if(sell_quantity>0){
-		order_curr_pos_ask=(UpperLimitPrice-sell_price)/PriceTick+0.5;
-		if(order_curr_pos_ask>=order_curr_pos && order_curr_pos_ask<=order_curr_pos+order_max_lines-1)
-			mvprintw(order_curr_pos_ask-order_curr_pos+2,11,"%10d",sell_quantity);
+	if (sell_quantity > 0) {
+		order_curr_pos_ask = (UpperLimitPrice - sell_price) / PriceTick + 0.5;
+		if (order_curr_pos_ask >= order_curr_pos && order_curr_pos_ask <= order_curr_pos + order_max_lines - 1)
+			mvprintw(order_curr_pos_ask - order_curr_pos + 2, 11, "%10d", sell_quantity);
 	}
-	
+
 	// Bid Volume
-	if(buy_quantity>0){
-		order_curr_pos_bid=(UpperLimitPrice-buy_price)/PriceTick+0.5;
-		if(order_curr_pos_bid>=order_curr_pos && order_curr_pos_bid<=order_curr_pos+order_max_lines-1)
-			mvprintw(order_curr_pos_bid-order_curr_pos+2,33,"%10d",buy_quantity);
+	if (buy_quantity > 0) {
+		order_curr_pos_bid = (UpperLimitPrice - buy_price) / PriceTick + 0.5;
+		if (order_curr_pos_bid>=order_curr_pos && order_curr_pos_bid <= order_curr_pos + order_max_lines - 1)
+			mvprintw(order_curr_pos_bid - order_curr_pos + 2, 33, "%10d", buy_quantity);
 	}
-	mvchgat(order_curr_line+1,0,-1,A_REVERSE,0,NULL);
-	if(fabs(close_price-price)<error_amount){
-		mvchgat(order_curr_line+1,22,11,A_NORMAL,0,NULL);
-		mvchgat(order_curr_line+1,22,11,A_BLINK,0,NULL);
+	mvchgat(order_curr_line + 1, 0, -1,A_REVERSE, 0,NULL);
+	if (fabs(close_price - price)<error_amount){
+		mvchgat(order_curr_line + 1, 22, 11,A_NORMAL, 0,NULL);
+		mvchgat(order_curr_line +1,22,11,A_BLINK,0,NULL);
 	}
 
 	return 0;
@@ -2370,39 +2375,39 @@ void order_redraw()
 	order_display_status();
 	order_display_focus();
 }
-void order_display_prices()
-{
-	if(order_symbol_index<0)
+
+void order_display_prices() {
+	if (order_symbol_index < 0)
 		return;
 
-	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
-	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
+	int precision = GetPrecision(vInstruments[order_symbol_index].InstrumentID);
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
+	double error_amount = 1.0 / pow(10.0, GetPrecision(vInstruments[order_symbol_index].InstrumentID)) / 2.0;
 
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
-	if(order_page_top_price==DBL_MAX){
-		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
+	if (order_page_top_price == DBL_MAX) {
+		order_page_top_price = UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
+		order_page_top_price = UpperLimitPrice;
 	}
 	int i;
-	for(i=0;i<order_max_lines;i++){
+	for (i = 0; i < order_max_lines;i++){
 		if(order_page_top_price-PriceTick*i>=LowerLimitPrice-error_amount)
 			mvprintw(i+2,22,"%10.*f",precision,order_page_top_price-PriceTick*i);
 	}
 }
-void order_display_orders()
-{
-	if(order_symbol_index<0)
+
+void order_display_orders() {
+	if (order_symbol_index < 0)
 		return;
-	
-	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
-	double PriceTick=vInstruments[order_symbol_index].PriceTick;
+
+	int precision = GetPrecision(vInstruments[order_symbol_index].InstrumentID);
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double PriceTick = vInstruments[order_symbol_index].PriceTick;
 	double buy_price = vDepthMarketDatas[order_symbol_index].BidPrice1;
 	int buy_quantity = vDepthMarketDatas[order_symbol_index].BidVolume1;
 	double sell_price = vDepthMarketDatas[order_symbol_index].AskPrice1;
@@ -2414,9 +2419,9 @@ void order_display_orders()
 		return;
 
 	int i;
-	for(i=0;i<order_max_lines;i++){
-		if(order_page_top_price-PriceTick*i>=LowerLimitPrice-error_amount)
-			order_display_orders_at_price(order_page_top_price-PriceTick*i);
+	for (i = 0; i < order_max_lines; i++) {
+		if (order_page_top_price - PriceTick * i >= LowerLimitPrice - error_amount)
+			order_display_orders_at_price(order_page_top_price - PriceTick * i);
 	}
 }
 
@@ -2478,13 +2483,13 @@ void order_display_orders_at_price(double price)
 			if(buy_quantity>0){
 				sprintf(strbuyorders,"%d",buy_quantity);
 			}
-			if(buying_quantity>0){
-				sprintf(strbuyorders+strlen(strbuyorders),"(%d",buying_quantity);
-				if(canceling_buy_quantity>0){
-					sprintf(strbuyorders+strlen(strbuyorders),"/-%d",canceling_buy_quantity);
+			if (buying_quantity > 0) {
+				sprintf(strbuyorders + strlen(strbuyorders), "(%d", buying_quantity);
+				if (canceling_buy_quantity > 0) {
+					sprintf(strbuyorders + strlen(strbuyorders), "/-%d", canceling_buy_quantity);
 				}
-				strcat(strbuyorders,")");
-			}else{
+				strcat(strbuyorders, ")");
+			} else {
 				if(canceling_buy_quantity>0){
 					sprintf(strbuyorders+strlen(strbuyorders),"(-%d)",canceling_buy_quantity);
 				}
@@ -2602,12 +2607,11 @@ void order_display_bid_ask()
 	}
 }
 
-void order_display_focus()
-{
-	if(order_symbol_index<0)
+void order_display_focus() {
+	if (order_symbol_index < 0)
 		return;
 
-	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
+	int precision = GetPrecision(vInstruments[order_symbol_index].InstrumentID);
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
 	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 	double PriceTick=vInstruments[order_symbol_index].PriceTick;
@@ -2622,26 +2626,28 @@ void order_display_focus()
 	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
 		return;
 	if(order_page_top_price==DBL_MAX){
-		order_page_top_price=UpperLimitPrice;
-	}else if(order_page_top_price>=UpperLimitPrice+error_amount || order_page_top_price<=LowerLimitPrice-error_amount){
-		order_page_top_price=UpperLimitPrice;
+		order_page_top_price = UpperLimitPrice;
+	} else if (order_page_top_price >= UpperLimitPrice + error_amount || order_page_top_price <= LowerLimitPrice -
+	           error_amount) {
+		order_page_top_price = UpperLimitPrice;
 	}
-	if(order_curr_price==DBL_MAX){
-		order_curr_price=UpperLimitPrice;
-	}else if(order_curr_price>=UpperLimitPrice+error_amount || order_curr_price<=LowerLimitPrice-error_amount){
-		order_curr_price=UpperLimitPrice;
+	if (order_curr_price == DBL_MAX) {
+		order_curr_price = UpperLimitPrice;
+	} else if (order_curr_price >= UpperLimitPrice + error_amount || order_curr_price <= LowerLimitPrice -
+	           error_amount) {
+		order_curr_price = UpperLimitPrice;
 	}
-	order_curr_line=(order_page_top_price-order_curr_price)/PriceTick+1+0.5;
-	if(order_curr_col==0){
-		mvchgat(order_curr_line+1,0,10,A_REVERSE,0,NULL);
-	}else{
-		mvchgat(order_curr_line+1,44,10,A_REVERSE,0,NULL);
+	order_curr_line = (order_page_top_price - order_curr_price) / PriceTick + 1 + 0.5;
+	if (order_curr_col == 0) {
+		mvchgat(order_curr_line + 1, 0, 10,A_REVERSE, 0,NULL);
+	} else {
+		mvchgat(order_curr_line + 1, 44, 10,A_REVERSE, 0,NULL);
 	}
 	//mvchgat(order_curr_line+1,0,-1,A_REVERSE,0,NULL);
-	if(close_price!=DBL_MAX){
-		nLine=(order_page_top_price-close_price)/PriceTick+1+0.5;
-		if(nLine==order_curr_line)
-			mvchgat(order_curr_line+1,22,10,A_UNDERLINE,0,NULL);
+	if (close_price != DBL_MAX) {
+		nLine = (order_page_top_price - close_price) / PriceTick + 1 + 0.5;
+		if (nLine == order_curr_line)
+			mvchgat(order_curr_line + 1, 22, 10,A_UNDERLINE, 0,NULL);
 		else if(nLine>=1 && nLine<=order_max_lines)
 			mvchgat(nLine+1,22,10,A_UNDERLINE,0,NULL);
 	}
@@ -2651,18 +2657,17 @@ void order_display_focus()
 	//	mvchgat(i+2,33,10,A_REVERSE,0,NULL);
 	//}
 }
-void order_move_orders()
-{
-	order_moving_at_price=order_curr_price;
-	order_is_moving=1;
+
+void order_move_orders() {
+	order_moving_at_price = order_curr_price;
+	order_is_moving = 1;
 }
 
-void order_move_complete()
-{
-	if(order_symbol_index<0)
+void order_move_complete() {
+	if (order_symbol_index < 0)
 		return;
 
-	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
+	int precision = GetPrecision(vInstruments[order_symbol_index].InstrumentID);
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
 	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 	double PriceTick=vInstruments[order_symbol_index].PriceTick;
@@ -2699,20 +2704,20 @@ void order_move_complete()
 		if(fabs(iter->LimitPrice-price)<0.000001){
 			// 改限价单
 			CThostFtdcInputOrderActionField Req{};
-			memset(&Req,0x00,sizeof(Req));
-			strncpy(Req.BrokerID,iter->BrokerID,sizeof(Req.BrokerID)-1);
-			strncpy(Req.InvestorID,iter->InvestorID,sizeof(Req.InvestorID)-1);
-			strncpy(Req.ExchangeID,iter->ExchangeID,sizeof(Req.ExchangeID)-1);
+			memset(&Req, 0x00, sizeof(Req));
+			strncpy(Req.BrokerID, iter->BrokerID, sizeof(Req.BrokerID) - 1);
+			strncpy(Req.InvestorID, iter->InvestorID, sizeof(Req.InvestorID) - 1);
+			strncpy(Req.ExchangeID,iter->ExchangeID, sizeof(Req.ExchangeID) - 1);
 			strcpy(Req.InstrumentID,iter->InstrumentID);
 			strcpy(Req.OrderRef,iter->OrderRef);
-			Req.OrderActionRef=pTradeRsp->OrderRef++;
-			Req.FrontID=iter->FrontID;
-			Req.SessionID=iter->SessionID;
-			strcpy(Req.OrderSysID,iter->OrderSysID);
-			Req.ActionFlag=THOST_FTDC_AF_Delete;
-			Req.LimitPrice=price;
+			Req.OrderActionRef = pTradeRsp->OrderRef++;
+			Req.FrontID = iter->FrontID;
+			Req.SessionID = iter->SessionID;
+			strcpy(Req.OrderSysID, iter->OrderSysID);
+			Req.ActionFlag = THOST_FTDC_AF_Delete;
+			Req.LimitPrice = price;
 
-			if(pTradeRsp->m_pTradeReq->ReqOrderAction(&Req,0)<0){
+			if(pTradeRsp->m_pTradeReq->ReqOrderAction(&Req, 0) < 0) {
 				// to do ...
 				continue;
 			}
@@ -2722,42 +2727,43 @@ void order_move_complete()
 
 			CThostFtdcOrderField Order{};
 			memset(&Order,0x00,sizeof(Order));
-			strncpy(Order.InvestorID,iter->InvestorID,sizeof(Order.InvestorID)-1);
-			strncpy(Order.ExchangeID,iter->ExchangeID,sizeof(Order.ExchangeID)-1);
-			strcpy(Order.InstrumentID,iter->InstrumentID);
-			strcpy(Order.OrderRef,iter->OrderRef);
-			Order.FrontID=iter->FrontID;
-			Order.SessionID=iter->SessionID;
-			strcpy(Order.OrderSysID,iter->OrderSysID);
-			Order.LimitPrice=order_curr_price;
+			strncpy(Order.InvestorID,iter->InvestorID,sizeof(Order.InvestorID) - 1);
+			strncpy(Order.ExchangeID, iter->ExchangeID, sizeof(Order.ExchangeID) - 1);
+			strcpy(Order.InstrumentID, iter->InstrumentID);
+			strcpy(Order.OrderRef, iter->OrderRef);
+			Order.FrontID = iter->FrontID;
+			Order.SessionID = iter->SessionID;
+			strcpy(Order.OrderSysID, iter->OrderSysID);
+			Order.LimitPrice = order_curr_price;
 			pTradeRsp->m_mMovingOrders.push_back(Order);
 		}
 	}
 
-	order_is_moving=0;
+	order_is_moving = 0;
 }
+
 void order_buy_at_market(unsigned int n)
 {
 	if(order_symbol_index<0)
 		return;
 
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice==DBL_MAX)
 		return;
-	order_buy_at_limit_price(UpperLimitPrice,n);
+	order_buy_at_limit_price(UpperLimitPrice, n);
 	order_redraw();
 }
-void order_sell_at_market(unsigned int n)
-{
-	if(order_symbol_index<0)
+
+void order_sell_at_market(unsigned int n) {
+	if (order_symbol_index<0)
 		return;
 
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
 	order_sell_at_limit_price(LowerLimitPrice,n);
 	order_redraw();
@@ -2773,8 +2779,8 @@ void order_buy_at_limit_price(double price,unsigned int n)
 		return;
 
 	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 	double PriceTick=vInstruments[order_symbol_index].PriceTick;
 	double error_amount=1.0/pow(10.0,GetPrecision(vInstruments[order_symbol_index].InstrumentID))/2.0;
 
@@ -2785,74 +2791,78 @@ void order_buy_at_limit_price(double price,unsigned int n)
 	unsigned int nClose=0;
 	unsigned int nCloseToday=0;
 
-	getOrderOffsetFlag(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy,n,nOpen,nClose,nCloseToday); // 自动开平
+	getOrderOffsetFlag(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy, n, nOpen, nClose,
+	                   nCloseToday); // 自动开平
 	// 报单顺序依次为：平今、平仓、开仓
-	if(nCloseToday){
+	if (nCloseToday) {
 		// 平今
 		OrderInsert(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy,THOST_FTDC_OF_CloseToday,price,nCloseToday);
 	}
 	if(nClose){
 		// 平仓
-		OrderInsert(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy,THOST_FTDC_OF_Close,price,nClose);
+		OrderInsert(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy,THOST_FTDC_OF_Close, price, nClose);
 	}
-	if(nOpen){
+	if (nOpen) {
 		// 开仓
 		OrderInsert(vInstruments[order_symbol_index].InstrumentID,THOST_FTDC_D_Buy,THOST_FTDC_OF_Open,price,nOpen);
 	}
 
 // 	vInputingOrders.push_back(Req);
 }
-void order_sell_at_limit(unsigned int n)
-{
-	order_sell_at_limit_price(order_curr_price,n);
+void order_sell_at_limit(unsigned int n) {
+	order_sell_at_limit_price(order_curr_price, n);
 	order_redraw();
 }
-void order_revert_at_limit()
-{
-	int nPosi=0,nBuyPosi=0,nSellPosi=0;
+
+void order_revert_at_limit() {
+	int nPosi = 0, nBuyPosi = 0, nSellPosi=0;
 
 	std::vector<stPosition_t>::iterator iter;
-	for(iter=vPositions.begin();iter!=vPositions.end();iter++){
-		if(strcmp(iter->InvestorID,order_curr_accname)==0 && strcmp(iter->InstrumentID,vInstruments[order_symbol_index].InstrumentID)==0)
+	for(iter=vPositions.begin();iter!=vPositions.end();iter++) {
+		if (strcmp(iter->InvestorID, order_curr_accname) == 0 && strcmp(iter->InstrumentID,
+		                                                                vInstruments[order_symbol_index].InstrumentID)
+		    == 0)
 			break;
 	}
-	if(iter!=vPositions.end()){
-		nPosi=iter->Volume;
-		nBuyPosi=iter->BuyVolume;
-		nSellPosi=iter->SellVolume;
+	if (iter != vPositions.end()) {
+		nPosi = iter->Volume;
+		nBuyPosi = iter->BuyVolume;
+		nSellPosi = iter->SellVolume;
 	}
-	if(nBuyPosi-nSellPosi>0)
-		order_sell_at_limit_price(order_curr_price,(nBuyPosi-nSellPosi)*2);
+	if (nBuyPosi - nSellPosi > 0)
+		order_sell_at_limit_price(order_curr_price, (nBuyPosi - nSellPosi) * 2);
 	else
-		order_buy_at_limit_price(order_curr_price,(nSellPosi-nBuyPosi)*2);
+		order_buy_at_limit_price(order_curr_price, (nSellPosi - nBuyPosi) * 2);
 	order_redraw();
 }
-void order_revert_at_market()
-{
-	if(order_symbol_index<0)
+
+void order_revert_at_market() {
+	if (order_symbol_index < 0)
 		return;
 
-	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
-	double LowerLimitPrice=vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
+	double UpperLimitPrice = vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
+	double LowerLimitPrice = vDepthMarketDatas[order_symbol_index].LowerLimitPrice;
 
-	if(UpperLimitPrice==DBL_MAX || LowerLimitPrice==DBL_MAX)
+	if (UpperLimitPrice == DBL_MAX || LowerLimitPrice == DBL_MAX)
 		return;
-	int nPosi=0,nBuyPosi=0,nSellPosi=0;
+	int nPosi = 0, nBuyPosi = 0, nSellPosi = 0;
 
 	std::vector<stPosition_t>::iterator iter;
-	for(iter=vPositions.begin();iter!=vPositions.end();iter++){
-		if(strcmp(iter->InvestorID,order_curr_accname)==0 && strcmp(iter->InstrumentID,vInstruments[order_symbol_index].InstrumentID)==0)
+	for(iter=vPositions.begin();iter!=vPositions.end(); iter++) {
+		if (strcmp(iter->InvestorID, order_curr_accname) == 0 && strcmp(iter->InstrumentID,
+		                                                                vInstruments[order_symbol_index].InstrumentID)
+		    == 0)
 			break;
 	}
-	if(iter!=vPositions.end()){
-		nPosi=iter->Volume;
+	if (iter != vPositions.end()) {
+		nPosi = iter->Volume;
 		nBuyPosi=iter->BuyVolume;
-		nSellPosi=iter->SellVolume;
+		nSellPosi = iter->SellVolume;
 	}
-	if(nBuyPosi-nSellPosi>0)
-		order_sell_at_limit_price(LowerLimitPrice,(nBuyPosi-nSellPosi)*2);
+	if (nBuyPosi - nSellPosi > 0)
+		order_sell_at_limit_price(LowerLimitPrice,(nBuyPosi-nSellPosi) * 2);
 	else
-		order_buy_at_limit_price(UpperLimitPrice,(nSellPosi-nBuyPosi)*2);
+		order_buy_at_limit_price(UpperLimitPrice, (nSellPosi - nBuyPosi) * 2);
 	order_redraw();
 }
 
@@ -2942,7 +2952,7 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 	Order.FrontID=pTradeRsp->FrontID;
 	Order.SessionID=pTradeRsp->SessionID;
 	strcpy(Order.OrderRef,Req.OrderRef);
-	Order.Direction=Req.Direction;
+	Order.Direction = Req.Direction;
 	Order.CombHedgeFlag[0]=Req.CombHedgeFlag[0];
 	Order.CombOffsetFlag[0]=Req.CombOffsetFlag[0];
 	Order.VolumeTotalOriginal=Req.VolumeTotalOriginal;
@@ -2965,16 +2975,17 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 				if(Req.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
 					if(Req.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iter->BuyVolume-iter->TodayBuyVolume)==0)
 						iter->TodayFrozenBuyVolume+=Req.VolumeTotalOriginal;
-					iter->FrozenBuyVolume+=Req.VolumeTotalOriginal;
+					iter->FrozenBuyVolume+= Req.VolumeTotalOriginal;
 				}
-				iter->SellingVolume+=Req.VolumeTotalOriginal;
-			}else{
-				if(Req.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-					if(Req.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (iter->SellVolume-iter->TodaySellVolume)==0)
-						iter->TodayFrozenSellVolume+=Req.VolumeTotalOriginal;
-					iter->FrozenSellVolume+=Req.VolumeTotalOriginal;
+				iter->SellingVolume += Req.VolumeTotalOriginal;
+			} else {
+				if (Req.CombOffsetFlag[0] != THOST_FTDC_OF_Open) {
+					if (Req.CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday || (iter->SellVolume - iter->TodaySellVolume)
+					    == 0)
+						iter->TodayFrozenSellVolume += Req.VolumeTotalOriginal;
+					iter->FrozenSellVolume += Req.VolumeTotalOriginal;
 				}
-				iter->BuyingVolume+=Req.VolumeTotalOriginal;
+				iter->BuyingVolume += Req.VolumeTotalOriginal;
 			}
 			break;
 		}
@@ -2984,11 +2995,11 @@ int OrderInsert(const char* InstrumentID,char BSFlag,char OCFlag,double Price,un
 		memset(&Posi,0x00,sizeof(Posi));
 		strcpy(Posi.InstrumentID,Req.InstrumentID);
 		strcpy(Posi.BrokerID,Req.BrokerID);
-		strcpy(Posi.InvestorID,Req.InvestorID);
+		strcpy(Posi.InvestorID, Req.InvestorID);
 		strcpy(Posi.ExchangeID, Instrument.ExchangeID);
-		if(Req.Direction==THOST_FTDC_D_Sell){
-			if(Req.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
-				if(Req.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
+		if (Req.Direction == THOST_FTDC_D_Sell) {
+			if (Req.CombOffsetFlag[0] != THOST_FTDC_OF_Open) {
+				if (Req.CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday || (Posi.BuyVolume-Posi.TodayBuyVolume)==0)
 					Posi.TodayFrozenBuyVolume+=Req.VolumeTotalOriginal;
 				Posi.FrozenBuyVolume+=Req.VolumeTotalOriginal;
 			}
@@ -3029,13 +3040,15 @@ void order_cancel_orders_at_price(double price)
 
 	std::vector<CThostFtdcOrderField>::iterator iter;
 	std::vector<CThostFtdcInputOrderActionField>::iterator iterCanceling;
-	for(iter=vOrders.begin();iter!=vOrders.end();iter++){
-		if(strcmp(iter->InvestorID,order_curr_accname)!=0 || strcmp(iter->InstrumentID,vInstruments[order_symbol_index].InstrumentID)!=0 || iter->OrderStatus==THOST_FTDC_OST_AllTraded || iter->OrderStatus==THOST_FTDC_OST_Canceled)
+	for (iter = vOrders.begin(); iter != vOrders.end(); iter++) {
+		if (strcmp(iter->InvestorID, order_curr_accname) != 0 ||
+		    strcmp(iter->InstrumentID, vInstruments[order_symbol_index].InstrumentID)!=0 || iter->OrderStatus==THOST_FTDC_OST_AllTraded || iter->OrderStatus==THOST_FTDC_OST_Canceled)
 			continue;
-		if((order_curr_col==0 && iter->Direction!=THOST_FTDC_D_Buy) || (order_curr_col==1 && iter->Direction!=THOST_FTDC_D_Sell))
+		if((order_curr_col==0 && iter->Direction!=THOST_FTDC_D_Buy) || (
+			   order_curr_col == 1 && iter->Direction != THOST_FTDC_D_Sell))
 			continue;
-		if(fabs(iter->LimitPrice-price)<error_amount){
-			for(iterCanceling=vCancelingOrders.begin();iterCanceling!=vCancelingOrders.end();iterCanceling++){
+		if (fabs(iter->LimitPrice - price) < error_amount) {
+			for (iterCanceling = vCancelingOrders.begin(); iterCanceling != vCancelingOrders.end(); iterCanceling++){
 				if(strcmp(iterCanceling->InstrumentID,iter->InstrumentID)==0 && iterCanceling->FrontID==iter->FrontID && iterCanceling->SessionID==iter->SessionID && strcmp(iterCanceling->OrderRef,iter->OrderRef)==0)
 					break;
 			}
@@ -3114,16 +3127,23 @@ char getOrderOffsetFlag(const char* szInstrument,char cDirection,unsigned int nQ
 	nCloseToday=0;
 
 	std::vector<stPosition_t>::iterator iter;
-	for(iter=vPositions.begin();iter!=vPositions.end();iter++){
-		if(strcmp(iter->InstrumentID,szInstrument)==0){
-			if(cDirection==THOST_FTDC_D_Buy){
-				if(iter->SellVolume-iter->FrozenSellVolume>0){
+	for(iter=vPositions.begin();iter!=vPositions.end(); iter++) {
+		if (strcmp(iter->InstrumentID, szInstrument) == 0) {
+			if (cDirection == THOST_FTDC_D_Buy) {
+				if (iter->SellVolume - iter->FrozenSellVolume > 0) {
 					// 只有上期所及能源中心才需要平今
-					if((strcmp(iter->ExchangeID,"SHFE")==0 || strcmp(iter->ExchangeID, "INE") == 0 ) && iter->TodaySellVolume-iter->TodayFrozenSellVolume>0){
-						nCloseToday=nQty>iter->TodaySellVolume-iter->TodayFrozenSellVolume?iter->TodaySellVolume-iter->TodayFrozenSellVolume:nQty;
-						nClose=nQty>iter->SellVolume-iter->FrozenSellVolume?iter->SellVolume-iter->FrozenSellVolume-nCloseToday:nQty-nCloseToday;
-					}else{
-						nClose=nQty>iter->SellVolume-iter->FrozenSellVolume?iter->SellVolume-iter->FrozenSellVolume-nCloseToday:nQty-nCloseToday;
+					if ((strcmp(iter->ExchangeID, "SHFE") == 0 || strcmp(iter->ExchangeID, "INE") == 0) && iter->
+					    TodaySellVolume - iter->TodayFrozenSellVolume > 0) {
+						nCloseToday = nQty > iter->TodaySellVolume-iter->TodayFrozenSellVolume
+							              ? iter->TodaySellVolume - iter->TodayFrozenSellVolume
+							              : nQty;
+						nClose = nQty > iter->SellVolume - iter->FrozenSellVolume
+							         ? iter->SellVolume - iter->FrozenSellVolume - nCloseToday
+							         : nQty - nCloseToday;
+					} else {
+						nClose = nQty > iter->SellVolume - iter->FrozenSellVolume
+							         ? iter->SellVolume - iter->FrozenSellVolume - nCloseToday
+							         : nQty - nCloseToday;
 					}
 				}
 				if(nQty>iter->SellVolume-iter->FrozenSellVolume){
@@ -3133,22 +3153,29 @@ char getOrderOffsetFlag(const char* szInstrument,char cDirection,unsigned int nQ
 			}else{
 				if(iter->BuyVolume-iter->FrozenBuyVolume>0){
 					// 只有上期所及能源中心才需要平今
-					if((strcmp(iter->ExchangeID, "SHFE") == 0 || strcmp(iter->ExchangeID, "INE") == 0) && iter->TodayBuyVolume-iter->TodayFrozenBuyVolume>0){
-						nCloseToday=nQty>iter->TodayBuyVolume-iter->TodayFrozenBuyVolume?iter->TodayBuyVolume-iter->TodayFrozenBuyVolume:nQty;
-						nClose=nQty>iter->BuyVolume-iter->FrozenBuyVolume?iter->BuyVolume-iter->FrozenBuyVolume-nCloseToday:nQty-nCloseToday;
-					}else{
-						nClose=nQty>iter->BuyVolume-iter->FrozenBuyVolume?iter->BuyVolume-iter->FrozenBuyVolume-nCloseToday:nQty-nCloseToday;
+					if((strcmp(iter->ExchangeID, "SHFE") == 0 || strcmp(iter->ExchangeID, "INE") == 0) && iter->
+					   TodayBuyVolume - iter->TodayFrozenBuyVolume > 0) {
+						nCloseToday = nQty > iter->TodayBuyVolume - iter->TodayFrozenBuyVolume
+							              ? iter->TodayBuyVolume - iter->TodayFrozenBuyVolume
+							              : nQty;
+						nClose = nQty > iter->BuyVolume - iter->FrozenBuyVolume
+							         ? iter->BuyVolume - iter->FrozenBuyVolume - nCloseToday
+							         : nQty - nCloseToday;
+					} else {
+						nClose = nQty > iter->BuyVolume - iter->FrozenBuyVolume
+							         ? iter->BuyVolume - iter->FrozenBuyVolume - nCloseToday
+							         : nQty - nCloseToday;
 					}
 				}
-				if(nQty>iter->BuyVolume-iter->FrozenBuyVolume){
+				if (nQty > iter->BuyVolume - iter->FrozenBuyVolume) {
 					// 如果还有剩余则开仓
-					nOpen=nQty-(iter->BuyVolume-iter->FrozenBuyVolume);
+					nOpen = nQty - (iter->BuyVolume - iter->FrozenBuyVolume);
 				}
 			}
 			return 0;
 		}
 	}
-	nOpen=nQty;
+	nOpen = nQty;
 
 	return 0;
 }
@@ -3318,14 +3345,15 @@ void orderlist_display_title()
 			break;
 		case ORDERLIST_COL_APPLY_TIME:		//volume
 			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_APPLY_TIME].width,orderlist_column_items[ORDERLIST_COL_APPLY_TIME].name);
-			x+=orderlist_column_items[ORDERLIST_COL_APPLY_TIME].width+1;
+			x+=orderlist_column_items[ORDERLIST_COL_APPLY_TIME].width + 1;
 			break;
 		case ORDERLIST_COL_UPDATE_TIME:		//close
 			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_UPDATE_TIME].width,orderlist_column_items[ORDERLIST_COL_UPDATE_TIME].name);
-			x+=orderlist_column_items[ORDERLIST_COL_UPDATE_TIME].width+1;
+			x+=orderlist_column_items[ORDERLIST_COL_UPDATE_TIME].width + 1;
 			break;
-		case ORDERLIST_COL_STATUS:		//volume
-			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_STATUS].width,orderlist_column_items[ORDERLIST_COL_STATUS].name);
+		case ORDERLIST_COL_STATUS: //volume
+			mvprintw(y, x, "%-*s", orderlist_column_items[ORDERLIST_COL_STATUS].width,
+			         orderlist_column_items[ORDERLIST_COL_STATUS].name);
 			x+=orderlist_column_items[ORDERLIST_COL_STATUS].width+1;
 			break;
 		case ORDERLIST_COL_SH_FLAG:		//close
@@ -3340,8 +3368,8 @@ void orderlist_display_title()
 			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_EXCHANGE_NAME].width,orderlist_column_items[ORDERLIST_COL_EXCHANGE_NAME].name);
 			x+=orderlist_column_items[ORDERLIST_COL_EXCHANGE_NAME].width+1;
 			break;
-		case ORDERLIST_COL_DESC:		//volume
-			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DESC].width,orderlist_column_items[ORDERLIST_COL_DESC].name);
+		case ORDERLIST_COL_DESC: //volume
+			mvprintw(y, x, "%-*s", orderlist_column_items[ORDERLIST_COL_DESC].width, orderlist_column_items[ORDERLIST_COL_DESC].name);
 			x+=orderlist_column_items[ORDERLIST_COL_DESC].width+1;
 			break;
 		default:
@@ -3404,15 +3432,15 @@ void orderlist_display_order(int index)
 			x+=orderlist_column_items[ORDERLIST_COL_ACC_ID].width;
 			break;
 		case ORDERLIST_COL_SYMBOL:		//InstrumentID
-			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_SYMBOL].width,vOrders[i].InstrumentID);
-			x+=orderlist_column_items[ORDERLIST_COL_SYMBOL].width;
+			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_SYMBOL].width, vOrders[i].InstrumentID);
+			x += orderlist_column_items[ORDERLIST_COL_SYMBOL].width;
 			break;
 		case ORDERLIST_COL_SYMBOL_NAME:		//Instrument.InstrumentName
 			mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_SYMBOL].width, STR(Instrument.InstrumentName).c_str());
-			x+=orderlist_column_items[ORDERLIST_COL_SYMBOL_NAME].width+1;
+			x+=orderlist_column_items[ORDERLIST_COL_SYMBOL_NAME].width + 1;
 			break;
-		case ORDERLIST_COL_DIRECTION:		//close
-			if(vOrders[i].Direction==THOST_FTDC_D_Buy && vOrders[i].CombOffsetFlag[0]==THOST_FTDC_OF_Open)
+		case ORDERLIST_COL_DIRECTION: //close
+			if (vOrders[i].Direction == THOST_FTDC_D_Buy && vOrders[i].CombOffsetFlag[0]==THOST_FTDC_OF_Open)
 				mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DIRECTION].width,"买开");
 			else if(vOrders[i].Direction==THOST_FTDC_D_Buy && vOrders[i].CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday)
 				mvprintw(y,x,"%-*s",orderlist_column_items[ORDERLIST_COL_DIRECTION].width,"买平今");
@@ -3791,15 +3819,16 @@ void filllist_display_title()
 			x+=filllist_column_items[FILLLIST_COL_DIRECTION].width+1;
 			break;
 		case FILLLIST_COL_VOLUME:		//close
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_VOLUME].width+2,filllist_column_items[FILLLIST_COL_VOLUME].name);
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_VOLUME].width + 2, filllist_column_items[FILLLIST_COL_VOLUME].name);
 			x+=filllist_column_items[FILLLIST_COL_VOLUME].width+1;
 			break;
 		case FILLLIST_COL_PRICE:		//volume
-			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_PRICE].width+2,filllist_column_items[FILLLIST_COL_PRICE].name);
-			x+=filllist_column_items[FILLLIST_COL_PRICE].width+1;
+			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_PRICE].width+2,filllist_column_items[
+				         FILLLIST_COL_PRICE].name);
+			x += filllist_column_items[FILLLIST_COL_PRICE].width + 1;
 			break;
-		case FILLLIST_COL_TIME:		//volume
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_TIME].width,filllist_column_items[FILLLIST_COL_TIME].name);
+		case FILLLIST_COL_TIME: //volume
+			mvprintw(y, x, "%-*s", filllist_column_items[FILLLIST_COL_TIME].width,filllist_column_items[FILLLIST_COL_TIME].name);
 			x+=filllist_column_items[FILLLIST_COL_TIME].width+1;
 			break;
 		case FILLLIST_COL_SH_FLAG:		//close
@@ -3812,10 +3841,10 @@ void filllist_display_title()
 			break;
 		case FILLLIST_COL_ORDERID:		//close
 			mvprintw(y,x,"%*s",filllist_column_items[FILLLIST_COL_ORDERID].width+3,filllist_column_items[FILLLIST_COL_ORDERID].name);
-			x+=filllist_column_items[FILLLIST_COL_ORDERID].width+1;
+			x+=filllist_column_items[FILLLIST_COL_ORDERID].width + 1;
 			break;
-		case FILLLIST_COL_EXCHANGE_NAME:		//volume
-			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width,filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].name);
+		case FILLLIST_COL_EXCHANGE_NAME: //volume
+			mvprintw(y, x, "%-*s", filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width,filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].name);
 			x+=filllist_column_items[FILLLIST_COL_EXCHANGE_NAME].width+1;
 			break;
 		default:
@@ -3870,10 +3899,10 @@ void filllist_display_filledorder(int index)
 			continue;
 		if(*iter!=FILLLIST_COL_ACC_ID && *iter!=FILLLIST_COL_SYMBOL && *iter!=FILLLIST_COL_SYMBOL_NAME && pos<filllist_curr_col_pos)
 			continue;
-		if(maxx-x<filllist_column_items[*iter].width)
+		if(maxx - x < filllist_column_items[*iter].width)
 			break;
-		switch(*iter){
-		case FILLLIST_COL_ACC_ID:		//InstrumentID
+		switch (*iter) {
+			case FILLLIST_COL_ACC_ID: //InstrumentID
 			mvprintw(y,x,"%-*s",filllist_column_items[FILLLIST_COL_ACC_ID].width,vTrades[i].InvestorID);
 			x+=filllist_column_items[FILLLIST_COL_ACC_ID].width;
 			break;
@@ -4255,15 +4284,16 @@ void positionlist_display_title()
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width+1;
 			break;
 		case POSITIONLIST_COL_BUY_TODAY:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width+2,positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].name);
-			x+=positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width+1;
+			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width + 2,
+			         positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].name);
+			x+=positionlist_column_items[POSITIONLIST_COL_BUY_TODAY].width + 1;
 			break;
 		case POSITIONLIST_COL_SELL_VOLUME:		//close
 			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width+2,positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].name);
-			x+=positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width+1;
+			x+=positionlist_column_items[POSITIONLIST_COL_SELL_VOLUME].width + 1;
 			break;
-		case POSITIONLIST_COL_SELL_PRICE:		//close
-			mvprintw(y,x,"%*s",positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width+3,positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].name);
+		case POSITIONLIST_COL_SELL_PRICE: //close
+			mvprintw(y, x, "%*s", positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width+3,positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].name);
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_PRICE].width+1;
 			break;
 		case POSITIONLIST_COL_SELL_PROFITLOSS:		//close
@@ -4275,8 +4305,9 @@ void positionlist_display_title()
 			x+=positionlist_column_items[POSITIONLIST_COL_SELL_TODAY].width+1;
 			break;
 		case POSITIONLIST_COL_EXCHANGE_NAME:		//volume
-			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].width,positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].name);
-			x+=positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].width+1;
+			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].width,
+			         positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].name);
+			x += positionlist_column_items[POSITIONLIST_COL_EXCHANGE_NAME].width + 1;
 			break;
 		default:
 			break;
@@ -4309,11 +4340,11 @@ void positionlist_display_status()
 
 void positionlist_display_position(const char *InstrumentID)
 {
-	size_t i,y,x,pos=0,maxy,maxx;
+	size_t i,y,x,pos= 0, maxy, maxx;
 
-	if(working_window!=WIN_POSITION)
+	if (working_window != WIN_POSITION)
 		return;
-	getmaxyx(stdscr,maxy,maxx);
+	getmaxyx(stdscr, maxy, maxx);
 	i = mPositionIndex[InstrumentID];
 	if(i<positionlist_curr_pos || i>positionlist_curr_pos+positionlist_max_lines-1)
 		return;
@@ -4344,8 +4375,8 @@ void positionlist_display_position(const char *InstrumentID)
 			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_SYMBOL].width,vPositions[i].InstrumentID);
 			x+=positionlist_column_items[POSITIONLIST_COL_SYMBOL].width;
 			break;
-		case POSITIONLIST_COL_SYMBOL_NAME:		//Instrument.InstrumentName
-			mvprintw(y,x,"%-*s",positionlist_column_items[POSITIONLIST_COL_SYMBOL].width, STR(Instrument.InstrumentName).c_str());
+		case POSITIONLIST_COL_SYMBOL_NAME: //Instrument.InstrumentName
+			mvprintw(y, x, "%-*s", positionlist_column_items[POSITIONLIST_COL_SYMBOL].width, STR(Instrument.InstrumentName).c_str());
 			x+=positionlist_column_items[POSITIONLIST_COL_SYMBOL_NAME].width+1;
 			break;
 		case POSITIONLIST_COL_VOLUME:		//volume
@@ -4363,8 +4394,9 @@ void positionlist_display_position(const char *InstrumentID)
 			x+=positionlist_column_items[POSITIONLIST_COL_AVG_PRICE].width+1;
 			break;
 		case POSITIONLIST_COL_PROFITLOSS:		//Instrument.InstrumentName
-			mvprintw(y,x,"%*.2f",positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width,GetProfitLoss(vPositions[i].InstrumentID));
-			x+=positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width+1;
+			mvprintw(y,x,"%*.2f",positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width,
+			         GetProfitLoss(vPositions[i].InstrumentID));
+			x += positionlist_column_items[POSITIONLIST_COL_PROFITLOSS].width + 1;
 			break;
 		case POSITIONLIST_COL_MARGIN:		//close
 			mvprintw(y,x,"%*.2f",positionlist_column_items[POSITIONLIST_COL_MARGIN].width,vPositions[i].Margin);
@@ -4385,7 +4417,7 @@ void positionlist_display_position(const char *InstrumentID)
 				mvprintw(y,x,"%*.*f",positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].width,Precision,vPositions[i].AvgBuyPrice);
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_PRICE].width+1;
 			break;
-		case POSITIONLIST_COL_BUY_PROFITLOSS:		//Instrument.InstrumentName
+		case POSITIONLIST_COL_BUY_PROFITLOSS: //Instrument.InstrumentName
 			mvprintw(y,x,"%*.2f",positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width, GetBuyProfitLoss(vPositions[i].InstrumentID));
 			x+=positionlist_column_items[POSITIONLIST_COL_BUY_PROFITLOSS].width+1;
 			break;
@@ -5005,28 +5037,30 @@ void acclist_goto_page_top()
 	if(vAccounts.empty())
 		return;
 	if(acclist_curr_line==0){	// first select
-		acclist_curr_line=1;
-	}else{
-		acclist_curr_line=1;
+		acclist_curr_line = 1;
+	} else {
+		acclist_curr_line = 1;
 	}
 	acclist_redraw();
 }
-void acclist_goto_page_bottom()
-{
-	if(vAccounts.empty())
+
+void acclist_goto_page_bottom() {
+	if (vAccounts.empty())
 		return;
-	if(acclist_curr_line==0){	// first select
-		acclist_curr_line=1;
+	if (acclist_curr_line == 0) {
+		// first select
+		acclist_curr_line = 1;
 	}
-	if(acclist_curr_line==vAccounts.size()-acclist_curr_pos)	// Already bottom
+	if (acclist_curr_line == vAccounts.size() - acclist_curr_pos) // Already bottom
 		return;
-	if(vAccounts.size()-acclist_curr_pos<acclist_max_lines){
-		acclist_curr_line=vAccounts.size()-acclist_curr_pos;
-	}else{
-		acclist_curr_line=acclist_max_lines;
+	if (vAccounts.size() - acclist_curr_pos < acclist_max_lines) {
+		acclist_curr_line = vAccounts.size() - acclist_curr_pos;
+	} else {
+		acclist_curr_line = acclist_max_lines;
 	}
 	acclist_redraw();
 }
+
 void acclist_goto_page_middle()
 {
 	if(vAccounts.empty())
@@ -5034,9 +5068,9 @@ void acclist_goto_page_middle()
 	if(acclist_curr_line==0){	// first select
 		acclist_curr_line=1;
 	}
-	if(vAccounts.size()-acclist_curr_pos==1)	// Only 1 line
+	if (vAccounts.size() - acclist_curr_pos == 1) // Only 1 line
 		return;
-	if(vAccounts.size()-acclist_curr_pos<acclist_max_lines){
+	if (vAccounts.size() - acclist_curr_pos < acclist_max_lines) {
 		acclist_curr_line=(vAccounts.size()-acclist_curr_pos)/2+1;
 	}else{
 		acclist_curr_line=acclist_max_lines/2+1;
@@ -5071,11 +5105,10 @@ void acclist_move_backward_half_page()
 
 
 // Mainboard column settings
-void column_settings_refresh_screen()
-{
-	int i=0,y,x;
-	
-	if(working_window!=WIN_COLUMN_SETTINGS)
+void column_settings_refresh_screen() {
+	int i = 0, y, x;
+
+	if (working_window != WIN_COLUMN_SETTINGS)
 		return;
 	endwin();
 	initscr();
@@ -5124,7 +5157,6 @@ void symbol_refresh_screen()
 		mvprintw(i++,0,"保证金率：");
 	else
 		mvprintw(i++,0,"保证金率：%.1f%%",Instrument.ShortMarginRatio*100);
-	mvprintw(i++,0,"每手保证金：%.1f",iter->Instrument.ShortMarginRatio*iter->Instrument.VolumeMultiple*iter->DepthMarketData.LastPrice);
 	mvprintw(i++,0,"最后交易日：%s",Instrument.ExpireDate);
 	mvprintw(i++,0,"品种：%s",Instrument.ProductID);
 	switch(Instrument.ProductClass){
@@ -5169,22 +5201,21 @@ void symbol_refresh_screen()
 	symbol_display_status();
 }
 
-void display_title()
-{
-	int y,x,pos=0,maxy,maxx;
+void display_title() {
+	int y, x, pos = 0, maxy, maxx;
 
-	if(working_window!=WIN_MAINBOARD)
+	if (working_window != WIN_MAINBOARD)
 		return;
-	getmaxyx(stdscr,maxy,maxx);
-	y=0;
-	x=0;
-	move(0,0);
+	getmaxyx(stdscr, maxy, maxx);
+	y = 0;
+	x = 0;
+	move(0, 0);
 	clrtoeol();
 
-	for(auto iter=vcolumns.begin();iter!=vcolumns.end();iter++,pos++){
-		if(mcolumns[*iter]==false)
+	for (auto iter = vcolumns.begin(); iter != vcolumns.end(); iter++, pos++) {
+		if (mcolumns[*iter] == false)
 			continue;
-		if(*iter!=COL_SYMBOL && *iter!=COL_SYMBOL_NAME && pos<curr_col_pos)
+		if (*iter != COL_SYMBOL && *iter!=COL_SYMBOL_NAME && pos<curr_col_pos)
 			continue;
 		if(maxx-x<column_items[*iter].width)
 			break;
@@ -5243,17 +5274,17 @@ void display_title()
 			break;
 		case COL_PREV_SETTLEMENT:		//close
 			mvprintw(y,x,"%*s",column_items[COL_PREV_SETTLEMENT].width+2,column_items[COL_PREV_SETTLEMENT].name);
-			x+=column_items[COL_PREV_SETTLEMENT].width+1;
+			x += column_items[COL_PREV_SETTLEMENT].width + 1;
 			break;
-		case COL_TRADE_VOLUME:		//volume
-			mvprintw(y,x,"%*s",column_items[COL_TRADE_VOLUME].width+2,column_items[COL_TRADE_VOLUME].name);
-			x+=column_items[COL_TRADE_VOLUME].width+1;
+		case COL_TRADE_VOLUME: //volume
+			mvprintw(y, x, "%*s", column_items[COL_TRADE_VOLUME].width + 2, column_items[COL_TRADE_VOLUME].name);
+			x += column_items[COL_TRADE_VOLUME].width + 1;
 			break;
-		case COL_AVERAGE_PRICE:		//close
-			mvprintw(y,x,"%*s",column_items[COL_AVERAGE_PRICE].width+2,column_items[COL_AVERAGE_PRICE].name);
-			x+=column_items[COL_AVERAGE_PRICE].width+1;
+		case COL_AVERAGE_PRICE: //close
+			mvprintw(y, x, "%*s", column_items[COL_AVERAGE_PRICE].width + 2, column_items[COL_AVERAGE_PRICE].name);
+			x += column_items[COL_AVERAGE_PRICE].width + 1;
 			break;
-		case COL_HIGH:		//close
+		case COL_HIGH: //close
 			mvprintw(y,x,"%*s",column_items[COL_HIGH].width+2,column_items[COL_HIGH].name);
 			x+=column_items[COL_HIGH].width+1;
 			break;
@@ -5263,10 +5294,10 @@ void display_title()
 			break;
 		case COL_SETTLEMENT:		//close
 			mvprintw(y,x,"%*s",column_items[COL_SETTLEMENT].width+2,column_items[COL_SETTLEMENT].name);
-			x+=column_items[COL_SETTLEMENT].width+1;
+			x+= column_items[COL_SETTLEMENT].width + 1;
 			break;
-		case COL_PREV_CLOSE:		//close
-			mvprintw(y,x,"%*s",column_items[COL_PREV_CLOSE].width+2,column_items[COL_PREV_CLOSE].name);
+		case COL_PREV_CLOSE: //close
+			mvprintw(y, x, "%*s", column_items[COL_PREV_CLOSE].width+2,column_items[COL_PREV_CLOSE].name);
 			x+=column_items[COL_PREV_CLOSE].width+1;
 			break;
 		case COL_OPENINT:		//volume
@@ -5274,8 +5305,8 @@ void display_title()
 			x+=column_items[COL_OPENINT].width+1;
 			break;
 		case COL_PREV_OPENINT:		//volume
-			mvprintw(y,x,"%*s",column_items[COL_PREV_OPENINT].width+2,column_items[COL_PREV_OPENINT].name);
-			x+=column_items[COL_PREV_OPENINT].width+1;
+			mvprintw(y,x,"%*s",column_items[COL_PREV_OPENINT].width + 2, column_items[COL_PREV_OPENINT].name);
+			x += column_items[COL_PREV_OPENINT].width+1;
 			break;
 		case COL_DATE:		//Date
 			mvprintw(y, x, "%-*s", column_items[COL_DATE].width, column_items[COL_DATE].name);
@@ -5298,11 +5329,11 @@ void display_title()
 		}
 	}
 }
-void order_display_title()
-{
-	if(working_window!=WIN_ORDER)
+
+void order_display_title() {
+	if (working_window != WIN_ORDER)
 		return;
-	if(order_symbol_index<0)
+	if (order_symbol_index < 0)
 		return;
 	int precision=GetPrecision(vInstruments[order_symbol_index].InstrumentID);
 	double UpperLimitPrice=vDepthMarketDatas[order_symbol_index].UpperLimitPrice;
@@ -5689,9 +5720,9 @@ int on_key_pressed_mainboard(int ch)
 // 		mainboard_move_up_1_line();
 		break;
 	case '+':
-// 		mainboard_move_down_1_line();
+		// 		mainboard_move_down_1_line();
 		break;
-//	case 'h':
+	//	case 'h':
 	//case KEY_LEFT:
 	//	if(curr_col!=1){
 	//		curr_col--; //	取消所在列的反白显示
@@ -5699,8 +5730,8 @@ int on_key_pressed_mainboard(int ch)
 	//	break;
 	case 'j':
 	case KEYBOARD_DOWN:		// DOWN
-	case KEYBOARD_NEXT:		// ^N
-		for(;Num>0;Num--)
+	case KEYBOARD_NEXT: // ^N
+		for (; Num > 0; Num--)
 			move_forward_1_line();
 		break;
 	case 'k':
@@ -5736,17 +5767,17 @@ int on_key_pressed_mainboard(int ch)
 		for(;Num>0;Num--)
 			move_backward_half_page();
 		break;
-	case 'd':	// forward harf page
-	case KEYBOARD_CTRL_D:		// ^D
-		for(;Num>0;Num--)
+	case 'd': // forward harf page
+	case KEYBOARD_CTRL_D: // ^D
+		for (; Num > 0; Num--)
 			move_forward_half_page();
 		break;
-	case 'e':	// forward 1 line
+	case 'e': // forward 1 line
 	case KEYBOARD_CTRL_E:		// ^E
 		for(;Num>0;Num--)
 			scroll_forward_1_line();
 		break;
-	case 'y':	// backward 1 line
+	case 'y': // backward 1 line
 	case KEYBOARD_CTRL_Y:		// ^Y
 		for(;Num>0;Num--)
 			scroll_backward_1_line();
@@ -5755,20 +5786,20 @@ int on_key_pressed_mainboard(int ch)
 	case KEY_END:
 		goto_file_bottom();
 		break;
-	case 'g':	// top line
+	case 'g': // top line
 	case KEY_HOME:
 		goto_file_top();
 		break;
-	case 'H':	// screen top
+	case 'H': // screen top
 		goto_page_top();
 		break;
-	case 'L':	// screen bottom
+	case 'L': // screen bottom
 		goto_page_bottom();
 		break;
 	case 'M':	// screen middle
 		goto_page_middle();
 		break;
-	case 'h':	// scroll to left
+	case 'h': // scroll to left
 	case KEYBOARD_LEFT:
 		for(;Num>0;Num--)
 			scroll_left_1_column();
@@ -5778,12 +5809,12 @@ int on_key_pressed_mainboard(int ch)
 		for(;Num>0;Num--)
 			scroll_right_1_column();
 		break;
-	case '^':	// scroll to begin
+	case '^': // scroll to begin
 		break;
-	case '$':	// scroll to end
+	case '$': // scroll to end
 		break;
-// 	case '+':	// enlarge column width
-// 		break;
+	// 	case '+':	// enlarge column width
+	// 		break;
 // 	case '-':	// lessen column width
 // 		break;
 	case '/':
@@ -5802,14 +5833,14 @@ int goto_mainboard_window_from_order()
 {
 	char *ppInstrumentID[1];
 
-	working_window=WIN_MAINBOARD;
+	working_window = WIN_MAINBOARD;
 	refresh_screen();
 
 	unsubscribe(order_symbol_index);
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++){
+	for (size_t i = curr_pos; i < vDepthMarketDatas.size() && i < curr_pos + max_lines; i++){
 		if(vSubscribed[i]){
 			ppInstrumentID[0]= vDepthMarketDatas[i].InstrumentID;
-			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
+			if (pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
 				return -1;
 			vSubscribed[i]=true;
 		}
@@ -5817,14 +5848,12 @@ int goto_mainboard_window_from_order()
 
 	return 0;
 }
-int goto_orderlist_window_from_order()
-{
-	
-	working_window=WIN_ORDERLIST;
+int goto_orderlist_window_from_order() {
+	working_window = WIN_ORDERLIST;
 	orderlist_refresh_screen();
-	
+
 	unsubscribe(order_symbol_index);
-	
+
 	return 0;
 }
 
@@ -5835,7 +5864,7 @@ int goto_filllist_window_from_order()
 	filllist_refresh_screen();
 	
 	unsubscribe(order_symbol_index);
-	
+
 	return 0;
 }
 
@@ -5855,20 +5884,19 @@ int goto_acclist_window_from_order()
 	
 	working_window=WIN_MONEY;
 	acclist_refresh_screen();
-	
+
 	unsubscribe(order_symbol_index);
-	
+
 	return 0;
 }
 
-int goto_mainboard_window_from_orderlist()
-{
+int goto_mainboard_window_from_orderlist() {
 	char *ppInstrumentID[1];
-	
-	working_window=WIN_MAINBOARD;
+
+	working_window = WIN_MAINBOARD;
 	refresh_screen();
-	
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++){
+
+	for (size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++){
 		if(vSubscribed[i]){
 			ppInstrumentID[0]=vDepthMarketDatas[i].InstrumentID;
 			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
@@ -5905,10 +5933,10 @@ int goto_mainboard_window_from_positionlist()
 	
 	working_window=WIN_MAINBOARD;
 	refresh_screen();
-	
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++){
-		if(vSubscribed[i]){
-			ppInstrumentID[0]=vDepthMarketDatas[i].InstrumentID;
+
+	for (size_t i = curr_pos; i < vDepthMarketDatas.size() && i < curr_pos + max_lines; i++) {
+		if (vSubscribed[i]) {
+			ppInstrumentID[0] = vDepthMarketDatas[i].InstrumentID;
 			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
 				return -1;
 			vSubscribed[i] =true;
@@ -5922,11 +5950,11 @@ int goto_mainboard_window_from_acclist()
 {
 	char *ppInstrumentID[1];
 	
-	working_window=WIN_MAINBOARD;
+	working_window = WIN_MAINBOARD;
 	refresh_screen();
-	
-	for(size_t i=curr_pos;i<vDepthMarketDatas.size() && i<curr_pos+max_lines;i++){
-		if(vSubscribed[i]){
+
+	for (size_t i = curr_pos; i < vDepthMarketDatas.size() && i < curr_pos + max_lines; i++) {
+		if (vSubscribed[i]) {
 			ppInstrumentID[0]=vDepthMarketDatas[i].InstrumentID;
 			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
 				return -1;
@@ -6190,14 +6218,14 @@ int on_key_pressed_order(int ch)
 			return 0;
 		order_curr_col=1;
 		order_redraw();
-// 		if(curr_col!=max_cols){
-// 			curr_col++;
-// 		}
+	// 		if(curr_col!=max_cols){
+	// 			curr_col++;
+	// 		}
 		break;
-	case 'f':	// forward 1 page
+	case 'f': // forward 1 page
 	case KEYBOARD_CTRL_F:		// ^F
 	case KEYBOARD_PAGEDOWN:
-		for(;Num>0;Num--)
+		for (; Num > 0; Num--)
 			order_move_forward_1_page();
 		break;
 	case 'p':
@@ -7160,13 +7188,13 @@ int on_key_pressed_acclist(int ch)
 // 			curr_col++;
 // 		}
 		break;
-	case 'f':	// forward 1 page
-	case KEYBOARD_CTRL_F:		// ^F
+	case 'f': // forward 1 page
+	case KEYBOARD_CTRL_F: // ^F
 	case KEYBOARD_PAGEDOWN:
 		acclist_move_forward_1_page();
 		break;
 	case 'b':
-	case KEYBOARD_CTRL_B:		// ^B
+	case KEYBOARD_CTRL_B: // ^B
 	case KEYBOARD_PAGEUP:
 		acclist_move_backward_1_page();
 		break;
@@ -7190,14 +7218,14 @@ int on_key_pressed_acclist(int ch)
 	case KEY_END:
 		acclist_goto_file_bottom();
 		break;
-	case 'g':	// top line
+	case 'g': // top line
 	case KEY_HOME:
 		acclist_goto_file_top();
 		break;
-	case 'H':	// screen top
+	case 'H': // screen top
 		acclist_goto_page_top();
 		break;
-	case 'L':	// screen bottom
+	case 'L': // screen bottom
 		acclist_goto_page_bottom();
 		break;
 	case 'M':	// screen middle
@@ -7814,23 +7842,23 @@ void CTradeRsp::HandleRspAuthenticate(CThostFtdcRspAuthenticateField& RspAuthent
 	m_pTradeReq->ReqUserLogin(&Req,0);
 }
 
-void CTradeRsp::HandleRspUserLogin(CThostFtdcRspUserLoginField& RspUserLogin,CThostFtdcRspInfoField& RspInfo,int nRequestID,bool bIsLast)
-{
-	if(RspInfo.ErrorID!=0){
+void CTradeRsp::HandleRspUserLogin(CThostFtdcRspUserLoginField& RspUserLogin,CThostFtdcRspInfoField &RspInfo,
+                                   int nRequestID, bool bIsLast) {
+	if (RspInfo.ErrorID != 0) {
 		status_print("%s登录失败:%s",UserID,RspInfo.ErrorMsg);
-		TradeConnectionStatus=CONNECTION_STATUS_LOGINFAILED;
+		TradeConnectionStatus = CONNECTION_STATUS_LOGINFAILED;
 		display_status();
 		return;
 	}
-	status_print("%s登录成功.",UserID);
+	status_print("%s登录成功.", UserID);
 
 	// Clear Order Operations
-// 	vInputingOrders.clear();
+	// 	vInputingOrders.clear();
 	std::vector<CThostFtdcInputOrderActionField>::iterator iter;
-	for(iter=vCancelingOrders.begin();iter!=vCancelingOrders.end();){
-		if(strcmp(iter->InvestorID,UserID)==0){
+	for (iter=vCancelingOrders.begin();iter!=vCancelingOrders.end();){
+		if(strcmp(iter->InvestorID, UserID) == 0) {
 			vCancelingOrders.erase(iter);
-			iter=vCancelingOrders.begin();
+			iter = vCancelingOrders.begin();
 			continue;
 		}else{
 			iter++;
@@ -8505,20 +8533,21 @@ void CTradeRsp::HandleErrRtnOrderInsert(CThostFtdcInputOrderField& InputOrder, C
 		}
 	}
 }
+
 void CTradeRsp::HandleErrRtnOrderAction(CThostFtdcOrderActionField& OrderAction, CThostFtdcRspInfoField& RspInfo)
 {
 	if(strlen(OrderAction.InstrumentID)>0){
 		status_print("撤单拒绝:%s",OrderAction.StatusMsg);
-		switch(working_window){
-		case WIN_ORDERLIST:
-			orderlist_redraw();
-			break;
-		case WIN_ORDER:
-			order_redraw();
-			break;
-		case WIN_POSITION:
-			positionlist_redraw();
-			break;
+		switch (working_window) {
+			case WIN_ORDERLIST:
+				orderlist_redraw();
+				break;
+			case WIN_ORDER:
+				order_redraw();
+				break;
+			case WIN_POSITION:
+				positionlist_redraw();
+				break;
 		default:
 			break;
 		}
@@ -8530,24 +8559,23 @@ void CMarketRsp::HandleFrontConnected()
 {
 	status_print("行情通道已连接.");
 
-	MarketConnectionStatus=CONNECTION_STATUS_CONNECTED;
+	MarketConnectionStatus = CONNECTION_STATUS_CONNECTED;
 	CThostFtdcReqUserLoginField Req{};
 	
 	for(size_t i=0;i<vDepthMarketDatas.size();i++)
-		vSubscribed[i] =false;
+		vSubscribed[i] = false;
 
-	memset(&Req,0x00,sizeof(Req));
-	strcpy(Req.BrokerID,BrokerID);
+	memset(&Req, 0x00, sizeof(Req));
+	strcpy(Req.BrokerID, BrokerID);
 	strcpy(Req.UserID,UserID);
 	strcpy(Req.Password,Password);
 	//sprintf(Req.UserProductInfo,"%s %s",APP_ID,APP_VERSION);
 	m_pMarketReq->ReqUserLogin(&Req,0);
 }
-void CMarketRsp::HandleFrontDisconnected(int nReason)
-{
+void CMarketRsp::HandleFrontDisconnected(int nReason) {
 	status_print("行情通道已断开.");
-	MarketConnectionStatus=CONNECTION_STATUS_DISCONNECTED;
-	switch(working_window){
+	MarketConnectionStatus = CONNECTION_STATUS_DISCONNECTED;
+	switch (working_window) {
 	case WIN_MAINBOARD:
 		refresh_screen();
 		break;
@@ -8576,9 +8604,10 @@ void CMarketRsp::HandleFrontDisconnected(int nReason)
 		break;
 	}
 }
-void CMarketRsp::HandleRspUserLogin(CThostFtdcRspUserLoginField& RspUserLogin,CThostFtdcRspInfoField& RspInfo,int nRequestID,bool bIsLast)
+
+void CMarketRsp::HandleRspUserLogin(CThostFtdcRspUserLoginField &RspUserLogin, CThostFtdcRspInfoField& RspInfo,int nRequestID,bool bIsLast)
 {
-	if(RspInfo.ErrorID!=0){
+	if(RspInfo.ErrorID != 0) {
 		status_print("行情通道登录失败:%s",RspInfo.ErrorMsg);
 		MarketConnectionStatus=CONNECTION_STATUS_LOGINFAILED;
 		display_status();
@@ -8631,28 +8660,25 @@ void CMarketRsp::HandleRtnDepthMarketData(CThostFtdcDepthMarketDataField& DepthM
 	}
 }
 
-int subscribe(size_t index)
-{
-	switch(working_window){
-	case WIN_MAINBOARD:
-		{
-			if(vSubscribed[index])
+int subscribe(size_t index) {
+	switch (working_window) {
+		case WIN_MAINBOARD: {
+			if (vSubscribed[index])
 				break;
-			char *ppInstrumentID[1]={(char *)vInstruments[index].InstrumentID};
-			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
+			char *ppInstrumentID[1] = {(char *) vInstruments[index].InstrumentID};
+			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1) < 0)
 				break;
-			vSubscribed[index] =true;
+			vSubscribed[index] = true;
 		}
 		break;
-	case WIN_ORDER:
-		{
-			if(order_symbol_index != index)
+		case WIN_ORDER: {
+			if (order_symbol_index != index)
 				break;
-			
-			if(vSubscribed[index])
+
+			if (vSubscribed[index])
 				break;
-			char *ppInstrumentID[1]={(char *)vInstruments[index].InstrumentID };
-			if(pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1)<0)
+			char *ppInstrumentID[1] = {(char *) vInstruments[index].InstrumentID};
+			if (pMarketRsp->m_pMarketReq->SubscribeMarketData(ppInstrumentID, 1) < 0)
 				break;
 			vSubscribed[index] =true;
 		}
@@ -8668,10 +8694,10 @@ int unsubscribe(size_t index)
 	char *ppInstrumentID[1];
 
 	if(index==UINT_MAX){
-		for(size_t i=0;i<vDepthMarketDatas.size();i++){
-			if(vSubscribed[i]){
-				ppInstrumentID[0]=(char *)vInstruments[i].InstrumentID;
-				if(pMarketRsp->m_pMarketReq->UnSubscribeMarketData(ppInstrumentID, 1)<0)
+		for(size_t i = 0; i < vDepthMarketDatas.size(); i++) {
+			if (vSubscribed[i]) {
+				ppInstrumentID[0] = (char *) vInstruments[i].InstrumentID;
+				if (pMarketRsp->m_pMarketReq->UnSubscribeMarketData(ppInstrumentID, 1)<0)
 					return -1;
 				vSubscribed[i]=false;
 			}
@@ -8680,8 +8706,8 @@ int unsubscribe(size_t index)
 	}
 	ppInstrumentID[0] = (char*)vInstruments[index].InstrumentID;
 	pMarketRsp->m_pMarketReq->UnSubscribeMarketData(ppInstrumentID, 1);
-	vSubscribed[index]=false;
-	
+	vSubscribed[index] = false;
+
 	return 0;
 }
 
@@ -8770,9 +8796,10 @@ void corner_choose_item()
 		size_t i,j;
 		
 		for(i=corner_curr_pos,j=0;i<vDepthMarketDatas.size();i++){
-			if(strncmp(vDepthMarketDatas[i].InstrumentID,strsearching,strlen(strsearching))==0){
+			if(strncmp(vDepthMarketDatas[i].InstrumentID, strsearching, strlen(strsearching)) == 0) {
 				j++;
-				if(j==corner_curr_line){	// found
+				if (j == corner_curr_line) {
+					// found
 					corner_destroy();
 					refresh_screen();
 					focus_quotation(i);
@@ -8783,8 +8810,9 @@ void corner_choose_item()
 		}
 	}else{// unselected
 		
-		for(size_t i=0;i<vDepthMarketDatas.size();i++){
-			if(strcmp(vDepthMarketDatas[i].InstrumentID,strmatch)==0){	// found
+		for(size_t i=0;i<vDepthMarketDatas.size();i++) {
+			if (strcmp(vDepthMarketDatas[i].InstrumentID, strmatch) == 0) {
+				// found
 				corner_destroy();
 				refresh_screen();
 				focus_quotation(i);
@@ -8802,15 +8830,15 @@ int on_key_pressed_corner(int ch)
 	int Num,Cmd;
 	
 	corner_input[strlen(corner_input)+1]=0;
-	corner_input[strlen(corner_input)]=ch;
-	if(input_parse_corner(&Num,&Cmd)<0)
+	corner_input[strlen(corner_input)] = ch;
+	if (input_parse_corner(&Num, &Cmd) < 0)
 		return 0;
-	
-	if(Num==0)
-		Num=1;
-	switch(Cmd){
-	case KEYBOARD_ESC:	// ESC
-		corner_destroy();
+
+	if (Num == 0)
+		Num = 1;
+	switch (Cmd) {
+		case KEYBOARD_ESC: // ESC
+			corner_destroy();
 		refresh_screen();
 		return 0;
 	case KEYBOARD_ENTER:	// Enter
@@ -8822,15 +8850,15 @@ int on_key_pressed_corner(int ch)
 	case KEYBOARD_REFRESH:		// ^L
 		refresh_screen();
 		corner_refresh_screen();
-		break;
-	case KEYBOARD_DOWN:		// ^N
-	case KEYBOARD_NEXT:
-		corner_move_forward_1_line();
-		break;
-	case KEYBOARD_PREVIOUS:		// ^P
-	case KEYBOARD_UP:
-		corner_move_backward_1_line();
-		break;
+			break;
+		case KEYBOARD_DOWN: // ^N
+		case KEYBOARD_NEXT:
+			corner_move_forward_1_line();
+			break;
+		case KEYBOARD_PREVIOUS: // ^P
+		case KEYBOARD_UP:
+			corner_move_backward_1_line();
+			break;
 	case KEYBOARD_LEFT:
 	case KEYBOARD_CTRL_B:		// ^B
 		corner_move_left_1_pos();
@@ -8838,9 +8866,9 @@ int on_key_pressed_corner(int ch)
 	case KEYBOARD_RIGHT:
 	case KEYBOARD_CTRL_F:		// ^F
 		corner_move_right_1_pos();
-		break;
-	case KEYBOARD_CTRL_D:		// ^D
-		corner_delete_char_at_current_pos();
+			break;
+		case KEYBOARD_CTRL_D: // ^D
+			corner_delete_char_at_current_pos();
 		break;
 	case 0:
 		corner_research();
@@ -8958,70 +8986,67 @@ void corner_move_backward_1_line()
 	if(corner_curr_line==0){	// first select
 		size_t i;
 		
-		for(i=corner_curr_pos;i<vDepthMarketDatas.size();i++){
-			if(strncmp(vDepthMarketDatas[i].InstrumentID,strsearching,strlen(strsearching))==0)
+		for(i=corner_curr_pos; i < vDepthMarketDatas.size(); i++) {
+			if (strncmp(vDepthMarketDatas[i].InstrumentID, strsearching, strlen(strsearching)) == 0)
 				break;
 		}
-		if(i==vDepthMarketDatas.size())
+		if (i == vDepthMarketDatas.size())
 			return;
-		corner_curr_line=1;
-		corner_curr_pos=i;
+		corner_curr_line = 1;
+		corner_curr_pos = i;
 		corner_redraw();
 		return;
 	}
-	
-	if(corner_curr_line==1){
+
+	if (corner_curr_line == 1) {
 		int i;
-		
-		for(i=corner_curr_pos-1;i>=0;i--){
-			if(strncmp(vDepthMarketDatas[i].InstrumentID,strsearching,strlen(strsearching))==0)
+
+		for (i = corner_curr_pos - 1; i >= 0; i--) {
+			if (strncmp(vDepthMarketDatas[i].InstrumentID, strsearching, strlen(strsearching)) == 0)
 				break;
 		}
-		if(i<0)	// Already top
+		if (i < 0) // Already top
 			return;
-		corner_curr_pos=i;
-	}else{
+		corner_curr_pos = i;
+	} else {
 		corner_curr_line--;
 	}
 
 	corner_redraw();
 }
 
-void corner_reset()
-{
-	corner_curr_line=0,corner_curr_col=1,corner_max_lines=5,corner_max_cols=20;
+void corner_reset() {
+	corner_curr_line = 0, corner_curr_col=1,corner_max_lines=5,corner_max_cols=20;
 	corner_curr_pos=0,corner_curr_col_pos=0;
 	memset(corner_input,0x00,sizeof(corner_input));
 	memset(strsearching,0x00,sizeof(strsearching));
-	memset(strmatch,0x00,sizeof(strmatch));
+	memset(strmatch, 0x00, sizeof(strmatch));
 }
 
-void corner_display_focus()
-{
-	if(corner_curr_line!=0)
-		mvwchgat(corner_win,corner_curr_line+1,1,corner_max_cols,A_REVERSE,0,NULL);
+void corner_display_focus() {
+	if (corner_curr_line != 0)
+		mvwchgat(corner_win, corner_curr_line + 1, 1, corner_max_cols,A_REVERSE, 0,NULL);
 }
 
 
 // Order Corner
 
-void order_corner_refresh_screen()
-{	
-	int y,x;
+void order_corner_refresh_screen() {
+	int y, x;
 
-	if(working_window!=WIN_ORDER)
+	if (working_window != WIN_ORDER)
 		return;
 
-	if(order_corner_win)
+	if (order_corner_win)
 		delwin(order_corner_win);
 
 	getmaxyx(stdscr,y,x);
 	order_corner_win=newwin(order_corner_max_lines+3,order_corner_max_cols+2,y-(order_corner_max_lines+3)-1,x-(order_corner_max_cols+2));
 	box(order_corner_win,'|','-');
-	mvwaddch(order_corner_win,0,0,'+');
-	mvwaddch(order_corner_win,0,order_corner_max_cols+1,'+');
-	mvwaddch(order_corner_win,order_corner_max_lines+2,0,'+');
-	mvwaddch(order_corner_win,order_corner_max_lines+2,order_corner_max_cols+1,'+');
+	mvwaddch(order_corner_win, 0, 0, '+');
+	mvwaddch(order_corner_win, 0, order_corner_max_cols + 1, '+');
+	mvwaddch(order_corner_win, order_corner_max_lines + 2, 0, '+');
+	mvwaddch(order_corner_win, order_corner_max_lines + 2, order_corner_max_cols+1,'+');
 // 	nodelay(stdscr,TRUE);
 // 	keypad(stdscr,TRUE);
 // 	noecho();
@@ -9110,9 +9135,9 @@ void order_corner_choose_item()
 			if(strcmp(vDepthMarketDatas[i].InstrumentID,order_strmatch)==0){	// found
 				strcpy(order_last_symbol,vInstruments[order_symbol_index].InstrumentID);
 				order_corner_destroy();
-				order_symbol_index=i;
-				order_curr_price=0;
-				order_page_top_price=0;
+				order_symbol_index = i;
+				order_curr_price = 0;
+				order_page_top_price = 0;
 				order_refresh_screen();
 				order_centralize_current_price();
 				subscribe(order_symbol_index);
@@ -9125,13 +9150,13 @@ void order_corner_choose_item()
 		order_refresh_screen();
 	}
 }
-int order_on_key_pressed_corner(int ch)
-{
-	int Num,Cmd;
-	
-	order_corner_input[strlen(order_corner_input)+1]=0;
-	order_corner_input[strlen(order_corner_input)]=ch;
-	if(order_input_parse_corner(&Num,&Cmd)<0)
+
+int order_on_key_pressed_corner(int ch) {
+	int Num, Cmd;
+
+	order_corner_input[strlen(order_corner_input) + 1] = 0;
+	order_corner_input[strlen(order_corner_input)] = ch;
+	if (order_input_parse_corner(&Num,&Cmd)<0)
 		return 0;
 	
 	if(Num==0)
@@ -9141,13 +9166,13 @@ int order_on_key_pressed_corner(int ch)
 		order_corner_destroy();
 		order_refresh_screen();
 		return 0;
-	case KEYBOARD_ENTER:	// Enter
+	case KEYBOARD_ENTER: // Enter
 		order_corner_choose_item();
 		return 0;
 	case KEYBOARD_DELETE:
 		order_corner_delete_char_before_current_pos();
 		break;
-	case KEYBOARD_REFRESH:		// ^L
+	case KEYBOARD_REFRESH: // ^L
 		order_refresh_screen();
 		order_corner_refresh_screen();
 		break;
@@ -9164,10 +9189,10 @@ int order_on_key_pressed_corner(int ch)
 		order_corner_move_left_1_pos();
 		break;
 	case KEYBOARD_RIGHT:
-	case KEYBOARD_CTRL_F:		// ^F
+	case KEYBOARD_CTRL_F: // ^F
 		order_corner_move_right_1_pos();
 		break;
-	case KEYBOARD_CTRL_D:		// ^D
+	case KEYBOARD_CTRL_D: // ^D
 		corner_delete_char_at_current_pos();
 		break;
 	case 0:
@@ -9182,11 +9207,11 @@ int order_on_key_pressed_corner(int ch)
 void order_corner_research()
 {
 	order_corner_curr_line=0,order_corner_curr_col=1,order_corner_max_lines=5,order_corner_max_cols=20;
-	order_corner_curr_pos=0,order_corner_curr_col_pos=0;
+	order_corner_curr_pos = 0, order_corner_curr_col_pos = 0;
 	order_corner_redraw();
 }
-void order_corner_move_left_1_pos()
-{
+
+void order_corner_move_left_1_pos() {
 	if(order_corner_curr_col!=1){
 		order_corner_curr_col--;
 	}
